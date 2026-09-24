@@ -1,0 +1,95 @@
+<fieldset class="text-list-section">
+  <legend>{{ legend }}</legend>
+
+  @if (ordered) {
+    <ol>
+      @for (item of items.controls; track item; let i = $index) {
+        <li class="text-list-item">
+          <app-text-field
+            [control]="item"
+            [fieldId]="fieldId(i)"
+            [label]="legend + ' ' + (i + 1)"
+            [multiline]="true"
+            [maxLength]="longTextMax"
+          />
+
+          <div class="text-list-actions">
+            <button
+              type="button"
+              [id]="'btn-remove-' + idPrefix + '-' + i"
+              (click)="removeItem(i)"
+              [disabled]="!canRemove()"
+            >
+              Remover
+            </button>
+            <button
+              type="button"
+              [id]="'btn-move-up-' + idPrefix + '-' + i"
+              (click)="moveUp(i)"
+              [disabled]="!canMoveUp(i)"
+            >
+              Mover para cima
+            </button>
+            <button
+              type="button"
+              [id]="'btn-move-down-' + idPrefix + '-' + i"
+              (click)="moveDown(i)"
+              [disabled]="!canMoveDown(i)"
+            >
+              Mover para baixo
+            </button>
+          </div>
+        </li>
+      }
+    </ol>
+  } @else {
+    <ul>
+      @for (item of items.controls; track item; let i = $index) {
+        <li class="text-list-item">
+          <app-text-field
+            [control]="item"
+            [fieldId]="fieldId(i)"
+            [label]="legend + ' ' + (i + 1)"
+            [multiline]="true"
+            [maxLength]="longTextMax"
+          />
+
+          <div class="text-list-actions">
+            <button
+              type="button"
+              [id]="'btn-remove-' + idPrefix + '-' + i"
+              (click)="removeItem(i)"
+              [disabled]="!canRemove()"
+            >
+              Remover
+            </button>
+            <button
+              type="button"
+              [id]="'btn-move-up-' + idPrefix + '-' + i"
+              (click)="moveUp(i)"
+              [disabled]="!canMoveUp(i)"
+            >
+              Mover para cima
+            </button>
+            <button
+              type="button"
+              [id]="'btn-move-down-' + idPrefix + '-' + i"
+              (click)="moveDown(i)"
+              [disabled]="!canMoveDown(i)"
+            >
+              Mover para baixo
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+
+  <div class="text-list-add">
+    <button type="button" [id]="'btn-add-' + idPrefix" (click)="addItem()">
+      Adicionar
+    </button>
+  </div>
+
+  <p class="text-list-hint">Deixe a subseção vazia para usar o texto do template</p>
+</fieldset>
