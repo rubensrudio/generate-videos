@@ -210,6 +210,76 @@ describe('subseção Cores (design.colors)', () => {
     const form = buildPromptForm(value);
     expect(form.controls.design.controls.colors.valid).toBe(true);
   });
+
+  it('PRE-09: uma linha completa e outra com value em branco deixa a subseção inválida', () => {
+    const value = buildAllBlankValue();
+    value.design.colors = [
+      { name: 'bg', value: '#f5f5f0', comment: '' },
+      { name: 'accent', value: '', comment: '' },
+    ];
+    const form = buildPromptForm(value);
+    const colors = form.controls.design.controls.colors;
+    expect(colors.valid).toBe(false);
+    expect(colors.at(1).controls.value.hasError('required')).toBe(true);
+  });
+
+  it('PRE-09: todas as linhas com nome e valor preenchidos deixa a subseção válida', () => {
+    const value = buildAllBlankValue();
+    value.design.colors = [
+      { name: 'bg', value: '#f5f5f0', comment: '' },
+      { name: 'accent', value: '#000000', comment: '' },
+    ];
+    const form = buildPromptForm(value);
+    expect(form.controls.design.controls.colors.valid).toBe(true);
+  });
+});
+
+describe('subseção Passos do processo (process.steps)', () => {
+  it('PRE-09: um passo preenchido e outro em branco deixa a subseção inválida', () => {
+    const value = buildAllBlankValue();
+    value.process.steps = ['Gerar áudio', '', 'Ajustar timings'];
+    const form = buildPromptForm(value);
+    expect(form.controls.process.controls.steps.valid).toBe(false);
+    expect(form.controls.process.controls.steps.at(1).hasError('required')).toBe(true);
+  });
+
+  it('PRE-09: todos os passos preenchidos deixa a subseção válida', () => {
+    const value = buildAllBlankValue();
+    value.process.steps = ['Gerar áudio', 'Medir durações'];
+    const form = buildPromptForm(value);
+    expect(form.controls.process.controls.steps.valid).toBe(true);
+  });
+
+  it('PRE-09: lista de passos vazia é válida', () => {
+    const value = buildAllBlankValue();
+    value.process.steps = [];
+    const form = buildPromptForm(value);
+    expect(form.controls.process.controls.steps.valid).toBe(true);
+  });
+});
+
+describe('subseção Princípios (principles.items)', () => {
+  it('PRE-09: um princípio preenchido e outro em branco deixa a subseção inválida', () => {
+    const value = buildAllBlankValue();
+    value.principles.items = ['Sem screenshots', ''];
+    const form = buildPromptForm(value);
+    expect(form.controls.principles.controls.items.valid).toBe(false);
+    expect(form.controls.principles.controls.items.at(1).hasError('required')).toBe(true);
+  });
+
+  it('PRE-09: todos os princípios preenchidos deixa a subseção válida', () => {
+    const value = buildAllBlankValue();
+    value.principles.items = ['Sem screenshots', 'Arco de storytelling'];
+    const form = buildPromptForm(value);
+    expect(form.controls.principles.controls.items.valid).toBe(true);
+  });
+
+  it('PRE-09: lista de princípios vazia é válida', () => {
+    const value = buildAllBlankValue();
+    value.principles.items = [];
+    const form = buildPromptForm(value);
+    expect(form.controls.principles.controls.items.valid).toBe(true);
+  });
 });
 
 describe('buildSceneGroup / buildColorGroup / buildListItem', () => {

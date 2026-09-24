@@ -9,14 +9,23 @@
  *   listados no contrato (`usageLine`, `narration`, `content`, `animation`,
  *   `background`, `cards`, `browserWindow`, `fadeOut`, `stagger`, cada passo e
  *   cada princípio) usam `LONG_TEXT_MAX`; os demais usam `SHORT_TEXT_MAX`.
- * - Os campos † (`background`, `cards`, `browserWindow` e os 5 campos de
- *   `animationDefaults`) usam `requiredUnlessSubsectionEmpty`, que combina o
- *   `requiredTrimmed()` do CT-5 com a função pura `isSubsectionEmpty` deste
- *   arquivo: o campo só é obrigatório quando a subseção como um todo não está
- *   vazia. `colors`, `process.steps` e `principles.items` são arrays de itens
- *   livres — cada item usa apenas `maxLength` (a obrigatoriedade do array como
- *   um todo não se aplica por item; `isSubsectionEmpty` para essas chaves
- *   existe para ser reaproveitada pela TASK-015, no gerador de markdown).
+ * - Os campos † de subseção única (`background`, `cards`, `browserWindow` e os
+ *   5 campos de `animationDefaults`) usam `requiredUnlessSubsectionEmpty`, que
+ *   combina o `requiredTrimmed()` do CT-5 com a função pura `isSubsectionEmpty`
+ *   deste arquivo: o campo só é obrigatório quando a subseção como um todo não
+ *   está vazia.
+ * - Os campos † de subseção em lista (`colors` — nome e valor de cada linha —,
+ *   `process.steps` e `principles.items`) seguem a mesma regra (PRE-09): a
+ *   subseção é "vazia" quando não tem item ou todos os itens estão em branco;
+ *   se não for vazia, cada item precisa estar completo. Isso é feito com
+ *   `optionalWhenSubsectionEmpty` (CT-5) direto sobre o `FormArray` irmão
+ *   (`control.parent`/`control.parent.parent`), que já sabe checar
+ *   recursivamente se todos os irmãos estão em branco — dispensa reimplementar
+ *   a lógica de `isSubsectionEmpty` (que opera sobre o valor bruto do
+ *   formulário todo, não sobre um `AbstractControl` isolado) para esse caso.
+ *   `isSubsectionEmpty` continua existindo para as 7 chaves (incluindo
+ *   `colors`, `processSteps` e `principles`) porque a TASK-015 (gerador de
+ *   markdown) importa essa função daqui.
  * - `scenes` (FormArray) recebe o validador de grupo `atLeastOneCompleteScene()`
  *   do CT-5; cada campo obrigatório da cena (`id`, `title`, `narration`,
  *   `startFrame`, `endFrame`, `content`) também usa `requiredTrimmed()` no
@@ -44,6 +53,7 @@ import {
   integerMin,
   musicStartBelowTotal,
   noSpaces,
+  optionalWhenSubsectionEmpty,
   positiveNumber,
   requiredTrimmed,
   sceneEndValid,
@@ -195,23 +205,45 @@ function requiredUnlessSubsectionEmpty(key: SubsectionKey): ValidatorFn {
   };
 }
 
-/** Item de lista livre (`process.steps`, `principles.items`): texto longo, sem obrigatoriedade por item. */
+/**
+ * Item de lista livre (`process.steps`, `principles.items`): texto longo.
+ * Obrigatório (PRE-09) a menos que TODOS os irmãos do mesmo `FormArray`
+ * estejam em branco (subseção vazia) — checado via `control.parent`, o que
+ * torna a função agnóstica a qual das duas listas o item pertence.
+ */
 export function buildListItem(text: string): FormControl<string> {
   return fb.control(text, {
-    validators: [Validators.maxLength(LONG_TEXT_MAX)],
+    validators: [
+      Validators.maxLength(LONG_TEXT_MAX),
+      optionalWhenSubsectionEmpty([requiredTrimmed()], (control) => control.parent),
+    ],
     updateOn: 'change',
   });
 }
 
 export function buildColorGroup(color: ColorTokenValue): ColorForm {
+  /** Subseção de `colors` = o `FormArray` de cores, avô do campo (pai é a
+   * linha/`ColorForm`, avô é o array com todas as linhas). PRE-09: a
+   * subseção só é considerada vazia quando TODAS as linhas (nome, valor e
+   * comentário) estão em branco. */
+  const colorsSubsection = (control: AbstractControl): AbstractControl | null => control.parent?.parent ?? null;
+
   return fb.group(
     {
       name: fb.control(color.name, {
-        validators: [uniqueColorName(), Validators.maxLength(SHORT_TEXT_MAX)],
+        validators: [
+          uniqueColorName(),
+          Validators.maxLength(SHORT_TEXT_MAX),
+          optionalWhenSubsectionEmpty([requiredTrimmed()], colorsSubsection),
+        ],
         updateOn: 'change',
       }),
       value: fb.control(color.value, {
-        validators: [colorValue(), Validators.maxLength(SHORT_TEXT_MAX)],
+        validators: [
+          colorValue(),
+          Validators.maxLength(SHORT_TEXT_MAX),
+          optionalWhenSubsectionEmpty([requiredTrimmed()], colorsSubsection),
+        ],
         updateOn: 'change',
       }),
       comment: fb.control(color.comment, {
