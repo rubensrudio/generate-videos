@@ -8,7 +8,9 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.spec.json --noEmit && tsc -p tsconfig.server.json",
-    "test:server": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"server/**/*.test.ts\""
+    "test:server": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"server/**/*.test.ts\"",
+    "server": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON server/main.ts",
+    "app": "ng build && npm run server"
   },
   "private": true,
   "packageManager": "npm@11.17.0",
