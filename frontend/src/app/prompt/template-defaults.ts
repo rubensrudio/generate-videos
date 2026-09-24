@@ -55,7 +55,7 @@ export const TEMPLATE_DEFAULTS: PromptFormValue = {
     similarityBoost: '0.8',
     style: '0.8',
     speakerBoost: true,
-    audioPrefix: 'v4-s',
+    audioPrefix: 'v4',
   },
   music: {
     file: '/public/background.mp3',
