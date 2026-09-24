@@ -1,0 +1,116 @@
+<section aria-labelledby="design-system-heading">
+  <h2 id="design-system-heading">Sistema Visual de Design</h2>
+
+  <section aria-labelledby="design-colors-heading">
+    <h3 id="design-colors-heading">Cores</h3>
+    <p class="field-hint">{{ subsectionHint }}</p>
+
+    @for (color of design().controls.colors.controls; track color; let i = $index) {
+      <fieldset [formGroup]="color">
+        <legend>Cor {{ i + 1 }}</legend>
+
+        <app-text-field
+          [control]="color.controls.name"
+          [fieldId]="'f-design-colors-' + i + '-name'"
+          label="Nome"
+        />
+
+        <app-text-field
+          [control]="color.controls.value"
+          [fieldId]="'f-design-colors-' + i + '-value'"
+          label="Valor"
+        />
+
+        <app-text-field
+          [control]="color.controls.comment"
+          [fieldId]="'f-design-colors-' + i + '-comment'"
+          label="Comentário"
+        />
+
+        <button type="button" [id]="'btn-remove-color-' + i" (click)="removeColor(i)">
+          Remover cor {{ i + 1 }}
+        </button>
+      </fieldset>
+    }
+
+    <button type="button" id="btn-add-color" (click)="addColor()">Adicionar cor</button>
+  </section>
+
+  <section aria-labelledby="design-background-heading">
+    <h3 id="design-background-heading">Fundo</h3>
+    <p class="field-hint">{{ subsectionHint }}</p>
+    <app-text-field
+      [control]="design().controls.background"
+      fieldId="f-design-background"
+      label="Fundo"
+      [multiline]="true"
+      [maxLength]="longTextMax"
+    />
+  </section>
+
+  <section aria-labelledby="design-cards-heading">
+    <h3 id="design-cards-heading">Cards</h3>
+    <p class="field-hint">{{ subsectionHint }}</p>
+    <app-text-field
+      [control]="design().controls.cards"
+      fieldId="f-design-cards"
+      label="Cards"
+      [multiline]="true"
+      [maxLength]="longTextMax"
+    />
+  </section>
+
+  <section aria-labelledby="design-browserWindow-heading">
+    <h3 id="design-browserWindow-heading">BrowserWindow</h3>
+    <p class="field-hint">{{ subsectionHint }}</p>
+    <app-text-field
+      [control]="design().controls.browserWindow"
+      fieldId="f-design-browserWindow"
+      label="BrowserWindow"
+      [multiline]="true"
+      [maxLength]="longTextMax"
+    />
+  </section>
+
+  <section aria-labelledby="design-animation-heading">
+    <h3 id="design-animation-heading">Padrões de Animação</h3>
+    <p class="field-hint">{{ subsectionHint }}</p>
+
+    <app-text-field
+      [control]="design().controls.springDamping"
+      fieldId="f-design-springDamping"
+      label="Spring Damping"
+      inputMode="decimal"
+    />
+
+    <app-text-field
+      [control]="design().controls.springStiffness"
+      fieldId="f-design-springStiffness"
+      label="Spring Stiffness"
+      inputMode="decimal"
+    />
+
+    <app-text-field
+      [control]="design().controls.springMass"
+      fieldId="f-design-springMass"
+      label="Spring Mass"
+      inputMode="decimal"
+    />
+
+    <app-text-field
+      [control]="design().controls.fadeOut"
+      fieldId="f-design-fadeOut"
+      label="Fade Out"
+      [multiline]="true"
+      [maxLength]="longTextMax"
+    />
+
+    <app-text-field
+      [control]="design().controls.stagger"
+      fieldId="f-design-stagger"
+      label="Stagger"
+      [multiline]="true"
+      [maxLength]="longTextMax"
+    />
+  </section>
+</section>
