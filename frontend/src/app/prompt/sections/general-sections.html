@@ -1,0 +1,204 @@
+<fieldset>
+  <legend>Identificação</legend>
+
+  <app-text-field
+    [control]="form().controls.identity.controls.productName"
+    fieldId="f-identity-productName"
+    label="Nome do produto"
+    hint="Usado no cabeçalho do formulário. Inclua o nome no título do documento"
+  />
+
+  <app-text-field
+    [control]="form().controls.identity.controls.documentTitle"
+    fieldId="f-identity-documentTitle"
+    label="Título do documento"
+    [required]="true"
+  />
+
+  <app-text-field
+    [control]="form().controls.identity.controls.usageLine"
+    fieldId="f-identity-usageLine"
+    label="Linha de uso"
+    [multiline]="true"
+    [maxLength]="longTextMax"
+  />
+</fieldset>
+
+<fieldset>
+  <legend>Tech Stack</legend>
+
+  <app-text-field
+    [control]="form().controls.techStack.controls.videoFramework"
+    fieldId="f-techStack-videoFramework"
+    label="Framework de vídeo"
+    [required]="true"
+  />
+
+  <app-text-field
+    [control]="form().controls.techStack.controls.bodyFont"
+    fieldId="f-techStack-bodyFont"
+    label="Fonte de corpo"
+    [required]="true"
+  />
+
+  <app-text-field
+    [control]="form().controls.techStack.controls.headingFont"
+    fieldId="f-techStack-headingFont"
+    label="Fonte de título"
+    [required]="true"
+  />
+
+  <app-text-field
+    [control]="form().controls.techStack.controls.monoFont"
+    fieldId="f-techStack-monoFont"
+    label="Fonte monoespaçada"
+  />
+
+  <app-text-field
+    [control]="form().controls.techStack.controls.ttsService"
+    fieldId="f-techStack-ttsService"
+    label="Serviço de TTS"
+    [required]="true"
+  />
+
+  <app-text-field
+    [control]="form().controls.techStack.controls.musicSource"
+    fieldId="f-techStack-musicSource"
+    label="Fonte da música"
+  />
+</fieldset>
+
+<fieldset>
+  <legend>Configurações do Vídeo</legend>
+
+  <app-text-field
+    [control]="form().controls.video.controls.width"
+    fieldId="f-video-width"
+    label="Largura"
+    [required]="true"
+    inputMode="numeric"
+  />
+
+  <app-text-field
+    [control]="form().controls.video.controls.height"
+    fieldId="f-video-height"
+    label="Altura"
+    [required]="true"
+    inputMode="numeric"
+  />
+
+  <app-text-field
+    [control]="form().controls.video.controls.formatDescription"
+    fieldId="f-video-formatDescription"
+    label="Descrição do formato"
+  />
+
+  <app-text-field
+    [control]="form().controls.video.controls.fps"
+    fieldId="f-video-fps"
+    label="FPS"
+    [required]="true"
+    inputMode="numeric"
+  />
+
+  <app-text-field
+    [control]="form().controls.video.controls.totalFrames"
+    fieldId="f-video-totalFrames"
+    label="Total de frames"
+    [required]="true"
+    inputMode="numeric"
+  />
+</fieldset>
+
+<fieldset>
+  <legend>Narração</legend>
+
+  <app-text-field
+    [control]="form().controls.voice.controls.voiceId"
+    fieldId="f-voice-voiceId"
+    label="ID da voz"
+    [required]="true"
+  />
+
+  <app-text-field
+    [control]="form().controls.voice.controls.fallbackName"
+    fieldId="f-voice-fallbackName"
+    label="Nome da voz alternativa"
+  />
+
+  <app-text-field
+    [control]="form().controls.voice.controls.fallbackVoiceId"
+    fieldId="f-voice-fallbackVoiceId"
+    label="ID da voz alternativa"
+  />
+
+  <app-text-field
+    [control]="form().controls.voice.controls.model"
+    fieldId="f-voice-model"
+    label="Modelo"
+    [required]="true"
+  />
+
+  <app-text-field
+    [control]="form().controls.voice.controls.stability"
+    fieldId="f-voice-stability"
+    label="Estabilidade"
+    [required]="true"
+    inputMode="decimal"
+  />
+
+  <app-text-field
+    [control]="form().controls.voice.controls.similarityBoost"
+    fieldId="f-voice-similarityBoost"
+    label="Aumento de similaridade"
+    [required]="true"
+    inputMode="decimal"
+  />
+
+  <app-text-field
+    [control]="form().controls.voice.controls.style"
+    fieldId="f-voice-style"
+    label="Estilo"
+    [required]="true"
+    inputMode="decimal"
+  />
+
+  <div class="checkbox-field">
+    <input type="checkbox" id="f-voice-speakerBoost" [formControl]="form().controls.voice.controls.speakerBoost" />
+    <label for="f-voice-speakerBoost">Aumento de locutor (speaker boost)</label>
+  </div>
+
+  <app-text-field
+    [control]="form().controls.voice.controls.audioPrefix"
+    fieldId="f-voice-audioPrefix"
+    label="Prefixo de áudio"
+    [required]="true"
+  />
+</fieldset>
+
+<fieldset>
+  <legend>Música de Fundo</legend>
+
+  <app-text-field
+    [control]="form().controls.music.controls.file"
+    fieldId="f-music-file"
+    label="Arquivo"
+    [required]="true"
+  />
+
+  <app-text-field
+    [control]="form().controls.music.controls.volume"
+    fieldId="f-music-volume"
+    label="Volume"
+    [required]="true"
+    inputMode="decimal"
+  />
+
+  <app-text-field
+    [control]="form().controls.music.controls.startFrame"
+    fieldId="f-music-startFrame"
+    label="Frame inicial"
+    [required]="true"
+    inputMode="numeric"
+  />
+</fieldset>
