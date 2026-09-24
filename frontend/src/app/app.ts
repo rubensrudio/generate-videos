@@ -1,11 +1,11 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
+
+import { PromptFormPage } from './prompt/prompt-form-page';
 
 @Component({
   selector: 'app-root',
-  imports: [],
+  imports: [PromptFormPage],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
-export class App {
-  protected readonly title = signal('prompt-form');
-}
+export class App {}
