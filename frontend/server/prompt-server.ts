@@ -24,6 +24,15 @@ const MAX_BODY_BYTES = 1024 * 1024;
 // enviar o corpo (slowloris), num endpoint sem autenticação (AS-6).
 const BODY_READ_TIMEOUT_MS = 30_000;
 
+// Depois de responder 413 (corpo grande demais), esperamos até esse tempo
+// para o restante do corpo terminar de chegar sozinho (drenado e
+// descartado). Só depois desse prazo, se o corpo ainda não acabou (cliente
+// malicioso que nunca termina de enviar), forçamos o fechamento do socket.
+// Isso evita truncar a resposta de clientes reais que só excederam o limite
+// por alguns MiB (visto em QA: destruir o socket cedo demais gera
+// ECONNRESET e derruba o próprio JSON de erro ainda em trânsito).
+const DRAIN_GRACE_MS = 3_000;
+
 const ALLOWED_ORIGIN_PORTS = [4200];
 
 /**
@@ -174,6 +183,41 @@ function readBody(
   });
 }
 
+/**
+ * Descarta o restante do corpo de uma requisição já respondida (paramos de
+ * ouvir 'data' em readBody ao cruzar o limite de tamanho). Deixa o socket
+ * fechar sozinho assim que o corpo acabar de chegar — sem RST, sem truncar
+ * a resposta já enviada. Só força o fechamento (`destroy`) se o corpo nunca
+ * terminar de chegar dentro de DRAIN_GRACE_MS (cliente malicioso segurando
+ * a conexão aberta para sempre, AS-6).
+ */
+function drainAndClose(req: IncomingMessage, log: (line: string) => void): void {
+  let done = false;
+
+  const finish = () => {
+    if (done) {
+      return;
+    }
+    done = true;
+    clearTimeout(graceTimer);
+  };
+
+  req.on('end', finish);
+  req.on('error', finish);
+  req.resume();
+
+  const graceTimer = setTimeout(() => {
+    if (done) {
+      return;
+    }
+    done = true;
+    log(
+      `${new Date().toISOString()} · CONEXAO_FORCADA_APOS_PAYLOAD_GRANDE · drenagem nao terminou em ${DRAIN_GRACE_MS}ms`,
+    );
+    req.socket?.destroy();
+  }, DRAIN_GRACE_MS);
+}
+
 async function handlePromptPost(
   req: IncomingMessage,
   res: ServerResponse,
@@ -212,11 +256,7 @@ async function handlePromptPost(
   if (readResult.tooLarge) {
     const err = sendError(res, 413, 'PAYLOAD_GRANDE', 'Conteúdo acima de 1 MiB');
     log(logLine(413, err.code, 0, startedAt));
-    // Encerra a conexão depois de responder: o corpo já ultrapassou o
-    // limite e pode nunca terminar de chegar (cliente malicioso segurando
-    // o upload). Sem isso, o socket ficaria pendurado indefinidamente
-    // (DoS num endpoint sem autenticação — AS-6).
-    req.socket?.destroy();
+    drainAndClose(req, log);
     return;
   }
 

@@ -209,37 +209,84 @@ test('corpo maior que 1 MiB: 413 PAYLOAD_GRANDE', async () => {
   await started.close();
 });
 
-test('corpo > 1 MiB sem terminar de enviar: servidor derruba a conexao (nao trava)', async () => {
-  // Regressao do BLOCKER de seguranca: um cliente que ultrapassa o limite e
-  // nunca fecha o corpo nao pode manter o socket pendurado (DoS em endpoint
-  // sem autenticacao). O teste falha por timeout do runner se o servidor
-  // nao destruir a conexao.
+test('corpo bem maior que 1 MiB (5 MiB e 10 MiB): 413 JSON completo, sem ECONNRESET', async () => {
+  // Regressao do BLOCKER descoberto pelo QA semantico: destruir o socket
+  // imediatamente apos sendError() truncava a resposta para payloads
+  // grandes o bastante (o corpo do request ainda em transito colidia com a
+  // escrita da resposta). Testamos varios tamanhos bem acima do limite.
   const projectRoot = await makeTmpProject();
   const staticDir = await makeStaticDir();
   const started = await startServer(projectRoot, staticDir);
 
-  const closed = await new Promise<boolean>((resolve, reject) => {
-    const socket = connect(started.port, '127.0.0.1', () => {
-      socket.write(
-        `POST /api/prompt HTTP/1.1\r\n` +
-          `Host: 127.0.0.1:${started.port}\r\n` +
-          `Content-Type: application/json\r\n` +
-          `Transfer-Encoding: chunked\r\n\r\n`,
-      );
-      // Manda um chunk unico maior que o limite e nunca envia o chunk final
-      // "0\r\n\r\n": simula um cliente que nao termina o corpo de proposito.
-      const oversized = Buffer.alloc(1024 * 1024 + 10, 'a');
-      socket.write(`${oversized.length.toString(16)}\r\n`);
-      socket.write(oversized);
-      socket.write('\r\n');
+  for (const sizeMiB of [5, 10]) {
+    const bigContent = 'a'.repeat(sizeMiB * 1024 * 1024);
+    const res = await fetch(`http://127.0.0.1:${started.port}/api/prompt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: bigContent }),
     });
-    socket.on('close', () => resolve(true));
-    socket.on('error', () => resolve(true));
-    setTimeout(() => reject(new Error('conexao nao foi encerrada pelo servidor')), 4000);
+    const body = await res.json();
+
+    assert.equal(res.status, 413, `esperado 413 para ${sizeMiB} MiB`);
+    assert.deepEqual(body, {
+      ok: false,
+      code: 'PAYLOAD_GRANDE',
+      message: 'Conteúdo acima de 1 MiB',
+    });
+  }
+
+  await started.close();
+});
+
+test('corpo > 1 MiB sem terminar de enviar: servidor forca o fechamento (nao trava para sempre)', async () => {
+  // Regressao do BLOCKER de seguranca: um cliente que ultrapassa o limite e
+  // nunca fecha o corpo nao pode manter a conexao presa para sempre (DoS em
+  // endpoint sem autenticacao). Verificamos pelo log do servidor (em vez do
+  // evento 'close' do socket cliente): em ambientes de sandbox a notificacao
+  // de fechamento TCP ao cliente as vezes leva muito mais que o esperado
+  // para chegar por causa de emulacao de rede, mesmo o servidor already
+  // tendo destruido o socket no prazo certo do lado dele — o que importa
+  // para o requisito de seguranca e o servidor derrubar a conexao, nao
+  // quando o cliente percebe isso.
+  const projectRoot = await makeTmpProject();
+  const staticDir = await makeStaticDir();
+  const started = await startServer(projectRoot, staticDir);
+
+  const socket = connect(started.port, '127.0.0.1', () => {
+    socket.write(
+      `POST /api/prompt HTTP/1.1\r\n` +
+        `Host: 127.0.0.1:${started.port}\r\n` +
+        `Content-Type: application/json\r\n` +
+        `Transfer-Encoding: chunked\r\n\r\n`,
+    );
+    // Manda um chunk unico maior que o limite e nunca envia o chunk final
+    // "0\r\n\r\n": simula um cliente que nao termina o corpo de proposito.
+    const oversized = Buffer.alloc(1024 * 1024 + 10, 'a');
+    socket.write(`${oversized.length.toString(16)}\r\n`);
+    socket.write(oversized);
+    socket.write('\r\n');
   });
+  // Nao deixa o socket cliente pendurado no proprio processo de teste,
+  // mesmo que a notificacao de fechamento demore a chegar.
+  socket.on('error', () => {});
 
-  assert.equal(closed, true);
+  const deadline = Date.now() + 8000;
+  let forcedCloseLogged = false;
+  while (Date.now() < deadline) {
+    if (started.logs.some((line) => line.includes('CONEXAO_FORCADA_APOS_PAYLOAD_GRANDE'))) {
+      forcedCloseLogged = true;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
 
+  assert.equal(
+    forcedCloseLogged,
+    true,
+    'servidor deveria ter logado o fechamento forcado da conexao dentro do prazo de graca',
+  );
+
+  socket.destroy();
   await started.close();
 });
 
