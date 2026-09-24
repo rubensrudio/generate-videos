@@ -209,6 +209,40 @@ test('corpo maior que 1 MiB: 413 PAYLOAD_GRANDE', async () => {
   await started.close();
 });
 
+test('corpo > 1 MiB sem terminar de enviar: servidor derruba a conexao (nao trava)', async () => {
+  // Regressao do BLOCKER de seguranca: um cliente que ultrapassa o limite e
+  // nunca fecha o corpo nao pode manter o socket pendurado (DoS em endpoint
+  // sem autenticacao). O teste falha por timeout do runner se o servidor
+  // nao destruir a conexao.
+  const projectRoot = await makeTmpProject();
+  const staticDir = await makeStaticDir();
+  const started = await startServer(projectRoot, staticDir);
+
+  const closed = await new Promise<boolean>((resolve, reject) => {
+    const socket = connect(started.port, '127.0.0.1', () => {
+      socket.write(
+        `POST /api/prompt HTTP/1.1\r\n` +
+          `Host: 127.0.0.1:${started.port}\r\n` +
+          `Content-Type: application/json\r\n` +
+          `Transfer-Encoding: chunked\r\n\r\n`,
+      );
+      // Manda um chunk unico maior que o limite e nunca envia o chunk final
+      // "0\r\n\r\n": simula um cliente que nao termina o corpo de proposito.
+      const oversized = Buffer.alloc(1024 * 1024 + 10, 'a');
+      socket.write(`${oversized.length.toString(16)}\r\n`);
+      socket.write(oversized);
+      socket.write('\r\n');
+    });
+    socket.on('close', () => resolve(true));
+    socket.on('error', () => resolve(true));
+    setTimeout(() => reject(new Error('conexao nao foi encerrada pelo servidor')), 4000);
+  });
+
+  assert.equal(closed, true);
+
+  await started.close();
+});
+
 test('JSON malformado: 400 PAYLOAD_INVALIDO', async () => {
   const projectRoot = await makeTmpProject();
   const staticDir = await makeStaticDir();

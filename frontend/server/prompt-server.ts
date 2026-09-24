@@ -19,6 +19,11 @@ export interface PromptServerOptions {
 // Limite de 1 MiB para o corpo do POST /api/prompt (PRE em plan seção 8.1).
 const MAX_BODY_BYTES = 1024 * 1024;
 
+// Tempo máximo de leitura do corpo antes de derrubar a conexão. Defesa em
+// profundidade contra clientes que abrem a conexão e nunca terminam de
+// enviar o corpo (slowloris), num endpoint sem autenticação (AS-6).
+const BODY_READ_TIMEOUT_MS = 30_000;
+
 const ALLOWED_ORIGIN_PORTS = [4200];
 
 /**
@@ -100,8 +105,12 @@ function contentTypeFor(filePath: string): string {
 
 /**
  * Lê o corpo da requisição limitado a MAX_BODY_BYTES. Se o limite for
- * ultrapassado, aborta a leitura e resolve com `{ tooLarge: true }` sem
- * acumular mais dados (evita segurar payloads gigantes em memória).
+ * ultrapassado, PARA de ouvir o stream imediatamente (não espera `'end'`,
+ * que um cliente malicioso pode nunca enviar) e resolve com
+ * `{ tooLarge: true }` sem acumular mais dados em memória. Quem chama
+ * `readBody` é responsável por destruir a conexão (`req.socket?.destroy()`)
+ * depois de responder, para não deixar sockets pendurados (superfície de
+ * DoS num endpoint sem autenticação — AS-6).
  */
 function readBody(
   req: IncomingMessage,
@@ -109,40 +118,58 @@ function readBody(
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
-    let tooLarge = false;
     let settled = false;
 
-    req.on('data', (chunk: Buffer) => {
-      total += chunk.length;
-      if (total > MAX_BODY_BYTES) {
-        // Não empilha mais dados em memória, mas continua drenando o stream
-        // até o fim (sem destruir o socket, que a resposta ainda usa).
-        tooLarge = true;
+    const onData = (chunk: Buffer) => {
+      if (settled) {
         return;
       }
-      if (!tooLarge) {
-        chunks.push(chunk);
+      total += chunk.length;
+      if (total > MAX_BODY_BYTES) {
+        settled = true;
+        req.removeListener('data', onData);
+        req.removeListener('end', onEnd);
+        req.removeListener('error', onError);
+        resolve({ tooLarge: true });
+        return;
       }
-    });
+      chunks.push(chunk);
+    };
 
-    req.on('end', () => {
+    const onEnd = () => {
       if (settled) {
         return;
       }
       settled = true;
-      if (tooLarge) {
-        resolve({ tooLarge: true });
-        return;
-      }
       resolve({ tooLarge: false, body: Buffer.concat(chunks).toString('utf8') });
-    });
+    };
 
-    req.on('error', (err) => {
+    const onError = (err: Error) => {
       if (settled) {
         return;
       }
       settled = true;
       reject(err);
+    };
+
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
+
+    // Timeout de leitura: se o corpo nunca terminar de chegar (nem
+    // ultrapassar o limite de tamanho), derruba o socket depois de
+    // BODY_READ_TIMEOUT_MS em vez de manter a conexão pendurada para
+    // sempre.
+    req.socket?.setTimeout(BODY_READ_TIMEOUT_MS, () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onError);
+      req.socket?.destroy();
+      reject(new Error('TIMEOUT_LEITURA_CORPO'));
     });
   });
 }
@@ -166,6 +193,12 @@ async function handlePromptPost(
   try {
     readResult = await readBody(req);
   } catch {
+    // O socket já pode ter sido destruído (ex.: timeout de leitura do
+    // corpo). Só tenta responder se a conexão ainda está viva.
+    if (req.socket?.destroyed) {
+      log(logLine(400, 'PAYLOAD_INVALIDO', 0, startedAt, 'socket destruído por timeout'));
+      return;
+    }
     const err = sendError(
       res,
       400,
@@ -179,6 +212,11 @@ async function handlePromptPost(
   if (readResult.tooLarge) {
     const err = sendError(res, 413, 'PAYLOAD_GRANDE', 'Conteúdo acima de 1 MiB');
     log(logLine(413, err.code, 0, startedAt));
+    // Encerra a conexão depois de responder: o corpo já ultrapassou o
+    // limite e pode nunca terminar de chegar (cliente malicioso segurando
+    // o upload). Sem isso, o socket ficaria pendurado indefinidamente
+    // (DoS num endpoint sem autenticação — AS-6).
+    req.socket?.destroy();
     return;
   }
 
