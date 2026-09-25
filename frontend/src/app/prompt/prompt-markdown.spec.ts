@@ -1,58 +1,27 @@
+import { describe, expect, it } from 'vitest';
+
 import { generatePromptMarkdown } from './prompt-markdown';
-import { TEMPLATE_DEFAULTS, TEMPLATE_FALLBACKS, createEmptyScene } from './template-defaults';
 import { PromptFormValue } from './prompt.model';
+import { TEMPLATE_DEFAULTS } from './template-defaults';
 
-function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function emptyValue(): PromptFormValue {
-  return {
-    identity: { productName: '', documentTitle: 'Título', usageLine: '' },
-    techStack: {
-      videoFramework: 'Remotion',
-      bodyFont: 'Inter',
-      headingFont: 'Serif',
-      monoFont: '',
-      ttsService: 'ElevenLabs',
-      musicSource: '',
-    },
-    video: { width: '1920', height: '1080', formatDescription: '', fps: '30', totalFrames: '100' },
-    voice: {
-      voiceId: 'abc',
-      fallbackName: '',
-      fallbackVoiceId: '',
-      model: 'model',
-      stability: '0.3',
-      similarityBoost: '0.5',
-      style: '0.5',
-      speakerBoost: true,
-      audioPrefix: 'v4-s',
-    },
-    music: { file: '/m.mp3', volume: '0.15', startFrame: '10' },
-    scenes: [
-      { ...createEmptyScene(), id: '1', title: 'Título', narration: 'Narração', startFrame: '0', endFrame: '50', content: 'Conteúdo' },
-    ],
-    design: {
-      colors: [{ name: '', value: '', comment: '' }],
-      background: '',
-      cards: '',
-      browserWindow: '',
-      springDamping: '',
-      springStiffness: '',
-      springMass: '',
-      fadeOut: '',
-      stagger: '',
-    },
-    process: { steps: [''] },
-    principles: { items: [''] },
-  };
+function acme(): PromptFormValue {
+  const value = structuredClone(TEMPLATE_DEFAULTS);
+  value.brand = { productName: 'Acme', logoPath: 'public/images/acme.png' };
+  return value;
 }
 
 describe('generatePromptMarkdown', () => {
-  it('contém todas as seções na ordem esperada, para os defaults', () => {
-    const output = generatePromptMarkdown(TEMPLATE_DEFAULTS);
-    const headings = [
+  const sendkit = generatePromptMarkdown(TEMPLATE_DEFAULTS);
+
+  it('termina com uma única quebra de linha e separa seções com ---', () => {
+    expect(sendkit.endsWith('\n')).toBe(true);
+    expect(sendkit.endsWith('\n\n')).toBe(false);
+    expect(sendkit.split('\n---\n').length).toBe(8);
+  });
+
+  it('seções na ordem do template, com rótulos em português', () => {
+    const headings = sendkit.split('\n').filter((line) => line.startsWith('## '));
+    expect(headings).toEqual([
       '## Tech Stack',
       '## Configurações do Vídeo',
       '## Narração (ElevenLabs)',
@@ -62,143 +31,112 @@ describe('generatePromptMarkdown', () => {
       '## Sistema Visual de Design',
       '## Processo para Recriar',
       '## Princípios de Design',
-    ];
-    let lastIndex = -1;
-    for (const heading of headings) {
-      const index = output.indexOf(heading);
-      expect(index).toBeGreaterThan(lastIndex);
-      lastIndex = index;
-    }
+    ]);
   });
 
-  it('tem 11 cenas e a duração total correta', () => {
-    const output = generatePromptMarkdown(TEMPLATE_DEFAULTS);
-    const matches = output.match(/### Cena /g) ?? [];
-    expect(matches.length).toBe(11);
-    expect(output).toContain('| Duração total | 1389 frames (~46.3 segundos) |');
+  it('título e linha de uso derivados do nome do produto', () => {
+    const md = generatePromptMarkdown(acme());
+    expect(
+      md.startsWith(
+        '# Acme — Vídeo de Apresentação\n\n> Use este prompt com Claude para criar o vídeo de apresentação do Acme usando Remotion.\n',
+      ),
+    ).toBe(true);
   });
 
-  it('não emite productName em lugar nenhum', () => {
-    const value = clone(TEMPLATE_DEFAULTS);
-    value.identity.productName = 'ZZPRODUTOZZ';
-    const output = generatePromptMarkdown(value);
-    expect(output).not.toContain('ZZPRODUTOZZ');
+  it('configurações do vídeo: formato do enum, fps fixo e duração derivada', () => {
+    expect(sendkit).toContain('| Resolução | 1920×1080 (16:9 paisagem) |');
+    expect(sendkit).toContain('| FPS | 30 |');
+    expect(sendkit).toContain('| Duração total | 1389 frames (~46.3 segundos) |');
+
+    const vertical = acme();
+    vertical.video.format = 'VERTICAL_9_16';
+    expect(generatePromptMarkdown(vertical)).toContain(
+      '| Resolução | 1080×1920 (9:16 vertical — Reels/Shorts) |',
+    );
   });
 
-  it('trata fallback de voz vazio e preenchido, e speakerBoost false', () => {
-    const withoutFallback = clone(TEMPLATE_DEFAULTS);
-    withoutFallback.voice.fallbackName = '';
-    withoutFallback.voice.fallbackVoiceId = '';
-    const outputWithout = generatePromptMarkdown(withoutFallback);
-    expect(outputWithout).not.toContain('Voz fallback (free)');
-
-    const withFallback = clone(TEMPLATE_DEFAULTS);
-    withFallback.voice.fallbackName = 'Laura';
-    withFallback.voice.fallbackVoiceId = 'FGY2WhTYpPnrIDTdsKH5';
-    const outputWith = generatePromptMarkdown(withFallback);
-    expect(outputWith).toContain('| Voz fallback (free) | Laura — `FGY2WhTYpPnrIDTdsKH5` |');
-
-    const falseBoost = clone(TEMPLATE_DEFAULTS);
-    falseBoost.voice.speakerBoost = false;
-    const outputFalse = generatePromptMarkdown(falseBoost);
-    expect(outputFalse).toContain('| Speaker boost | false |');
+  it('narração: voz, modelo, versão do áudio e parâmetros são constantes', () => {
+    expect(sendkit).toContain('| Voice ID | `S4M4JhZIzYGUlDsYIOow` |');
+    expect(sendkit).toContain('| Voz fallback (free) | Laura — `FGY2WhTYpPnrIDTdsKH5` |');
+    expect(sendkit).toContain('| Modelo | `eleven_multilingual_v2` |');
+    expect(sendkit).toContain('| Stability | 0.3 |');
+    expect(sendkit).toContain('| Speaker boost | true |');
+    expect(sendkit).toContain('`v1-s06.mp3`, `v1-s06b.mp3`, `v1-s07.mp3`');
   });
 
-  it('lista os nomes de arquivo de áudio com prefixo customizado e cenas com sufixo', () => {
-    const value = clone(TEMPLATE_DEFAULTS);
-    value.voice.audioPrefix = 'v4'; // cenas 1 e 6b já existem nos defaults
-    const output = generatePromptMarkdown(value);
-    expect(output).toContain('v4-s01.mp3');
-    expect(output).toContain('v4-s06b.mp3');
-    const scene1 = value.scenes[0];
-    expect(output).toContain(`| ${scene1.id} — ${scene1.title} | v4-s01.mp3 | "${scene1.narration}" |`);
+  it('música fixa com início em segundos', () => {
+    expect(sendkit).toContain('- **Arquivo**: `/public/background.mp3`');
+    expect(sendkit).toContain('- **Inicia em**: frame 45 (1.5 segundos)');
   });
 
-  it('não emite rótulo sem valor quando campos opcionais estão vazios', () => {
-    const value = emptyValue();
-    const output = generatePromptMarkdown(value);
-    expect(output).not.toContain('> ');
-    expect(output).not.toMatch(/\*\*Monospace\*\*: \n/);
-    expect(output).not.toContain('- **Música de fundo**: ');
-    expect(output).not.toMatch(/Resolução \| \d+×\d+ \(\)/);
-    expect(output).not.toContain('- **Animação**: ');
-    expect(output).not.toContain('- **Fade out**: frame ');
+  it('roteiro com ids derivados e células escapadas', () => {
+    const value = acme();
+    value.scenes[0].narration = 'a | b\nc';
+    const md = generatePromptMarkdown(value);
+    expect(md).toContain('| 1 — Intro | v1-s01.mp3 | "a \\| b c" |');
+    expect(md).toContain('| 6b — Email Preview | v1-s06b.mp3 |');
   });
 
-  it('escapa pipes e quebras de linha nas células da tabela do roteiro', () => {
-    const value = clone(TEMPLATE_DEFAULTS);
-    value.scenes = [
-      { ...createEmptyScene(), id: '1', title: 'Título | com pipe', narration: 'a|b\nc', startFrame: '0', endFrame: '10', content: 'x' },
-    ];
-    const output = generatePromptMarkdown(value);
-    const scriptSection = output
-      .split('## Roteiro de Narração (por cena)')[1]
-      .split('## Detalhamento Cena a Cena')[0];
-    const rowLine = scriptSection
-      .split('\n')
-      .find((line) => line.startsWith('| 1 —'));
-    const headerLine = '| Cena | Arquivo | Texto da narração |';
-    expect(rowLine).toBeDefined();
-    const countUnescapedPipes = (line: string): number => line.replace(/\\\|/g, '').split('|').length - 1;
-    expect(countUnescapedPipes(rowLine as string)).toBe(countUnescapedPipes(headerLine));
+  it('detalhamento: frames encadeados, animação padrão do tipo e fade out derivado', () => {
+    expect(sendkit).toContain('### Cena 1: Intro\n- **Frames**: 0–138 (138 frames)');
+    expect(sendkit).toContain('### Cena 6b: Email Preview\n- **Frames**: 822–946 (124 frames)');
+    expect(sendkit).toContain('- **Animação**: Logo spring no frame 2 (scale 0 → 1)');
+    expect(sendkit).toContain('- **Fade out**: frame 126');
   });
 
-  it('usa os TEMPLATE_FALLBACKS literalmente quando todas as subseções † estão vazias', () => {
-    const output = generatePromptMarkdown(emptyValue());
-    expect(output).toContain(TEMPLATE_FALLBACKS.colors);
-    expect(output).toContain(TEMPLATE_FALLBACKS.background);
-    expect(output).toContain(TEMPLATE_FALLBACKS.cards);
-    expect(output).toContain(TEMPLATE_FALLBACKS.browserWindow);
-    expect(output).toContain(TEMPLATE_FALLBACKS.animationDefaults);
-    expect(output).toContain(TEMPLATE_FALLBACKS.processSteps);
-    expect(output).toContain(TEMPLATE_FALLBACKS.principles);
+  it('cena CTA não tem fade out e cena personalizada sem animação omite a linha', () => {
+    const value = acme();
+    value.scenes = [{ ...value.scenes[0], type: 'CUSTOM', animation: '' }, { ...value.scenes[10] }];
+    const md = generatePromptMarkdown(value);
+    const breakdown = md.slice(md.indexOf('## Detalhamento'), md.indexOf('## Sistema Visual'));
+    expect(breakdown).not.toContain('Logo spring no frame 2 (scale 0 → 1)');
+    expect(breakdown.match(/- \*\*Fade out\*\*/g)?.length).toBe(1);
   });
 
-  it('usa as cores preenchidas em vez do fallback quando ao menos uma linha está completa', () => {
-    const value = emptyValue();
-    value.design.colors = [{ name: 'bg', value: '#fff', comment: '' }];
-    const output = generatePromptMarkdown(value);
-    expect(output).toContain('bg:');
-    expect(output).toContain('#fff');
-    expect(output).not.toContain(TEMPLATE_FALLBACKS.colors);
+  it('animação digitada substitui o padrão e linhas extras são indentadas', () => {
+    const value = acme();
+    value.scenes[0].animation = 'linha 1\nlinha 2';
+    expect(generatePromptMarkdown(value)).toContain('- **Animação**: linha 1\n  linha 2');
   });
 
-  it('normaliza decimais com vírgula e inteiros com zero à esquerda', () => {
-    const value = clone(TEMPLATE_DEFAULTS);
-    value.voice.stability = '0,30';
-    value.video.fps = '030';
-    const output = generatePromptMarkdown(value);
-    expect(output).toContain('| Stability | 0.3 |');
-    expect(output).toContain('| FPS | 30 |');
+  it('cores: 18 tokens com tons derivados das cores-base', () => {
+    expect(sendkit).toContain('greenLight:  rgba(22, 163, 74, 0.12)');
+    expect(sendkit).toContain('border:      #e2e2dc  — olive');
+
+    const value = acme();
+    value.colors.green = '#1B5E20';
+    const md = generatePromptMarkdown(value);
+    expect(md).toContain('green:       #1B5E20');
+    expect(md).toContain('greenGlow:   rgba(27, 94, 32, 0.25)');
   });
 
-  it('reflete a ordem do array de cenas no Roteiro e no Detalhamento, e remoção de cena', () => {
-    const value = clone(TEMPLATE_DEFAULTS);
-    const [sceneA, sceneB, ...rest] = value.scenes;
-    value.scenes = [sceneB, sceneA, ...rest];
-    const output = generatePromptMarkdown(value);
-    const scriptSection = output.split('## Roteiro de Narração (por cena)')[1].split('## Detalhamento')[0];
-    const breakdownSection = output.split('## Detalhamento Cena a Cena')[1].split('## Sistema Visual')[0];
-    expect(scriptSection.indexOf(`${sceneB.id} —`)).toBeLessThan(scriptSection.indexOf(`${sceneA.id} —`));
-    expect(breakdownSection.indexOf(`Cena ${sceneB.id}:`)).toBeLessThan(breakdownSection.indexOf(`Cena ${sceneA.id}:`));
-
-    const removed = clone(TEMPLATE_DEFAULTS);
-    const removedScene = removed.scenes[0];
-    removed.scenes = removed.scenes.slice(1);
-    const removedOutput = generatePromptMarkdown(removed);
-    expect(removedOutput).not.toContain(`| ${removedScene.id} — ${removedScene.title}`);
-    expect(removedOutput).not.toContain(`### Cena ${removedScene.id}:`);
+  it('fontes e fundo: monospace do enum e cor de fundo do usuário', () => {
+    const value = acme();
+    value.video.monoFont = 'JETBRAINS_MONO';
+    value.colors.bg = '#F5F4F1';
+    const md = generatePromptMarkdown(value);
+    expect(md).toContain(
+      '- **Monospace**: JetBrains Mono (via `@remotion/google-fonts/JetBrainsMono`)',
+    );
+    expect(md).toContain('- Cor #F5F4F1 com grid pattern sutil');
   });
 
-  it('prefixa a 2ª linha de conteúdo multilinha com 2 espaços e termina com um único \\n sem \\r', () => {
-    const value = clone(TEMPLATE_DEFAULTS);
-    value.scenes = [
-      { ...createEmptyScene(), id: '1', title: 'T', narration: 'N', startFrame: '0', endFrame: '10', content: 'linha 1\nlinha 2' },
-    ];
-    const output = generatePromptMarkdown(value);
-    expect(output).toContain('- **Conteúdo**: linha 1\n  linha 2');
-    expect(output).not.toContain('\r');
-    expect(output.endsWith('\n')).toBe(true);
-    expect(output.endsWith('\n\n')).toBe(false);
+  it('processo usa a versão do áudio fixa e o produto e logo do usuário (sem resto do Sendkit)', () => {
+    const md = generatePromptMarkdown(acme());
+    const process = md.slice(md.indexOf('## Processo'), md.indexOf('## Princípios'));
+    expect(process).toContain('Salve como `v1-s01.mp3` até `v1-s10.mp3` + `v1-s06b.mp3`.');
+    expect(process).toContain('Logo do Acme em `public/images/acme.png`');
+    expect(process).toContain('Coloque a música em `/public/background.mp3`');
+    expect(process).not.toMatch(/Sendkit|v4-|background2/);
+  });
+
+  it('princípios base mais os adicionais, um por linha (marcadores removidos)', () => {
+    const value = acme();
+    value.extraPrinciples = '- Identidade fiscal\n\n  Tom sóbrio  ';
+    const md = generatePromptMarkdown(value);
+    expect(md).toContain(
+      '- **Sem screenshots** — todo UI é composto por componentes React animados',
+    );
+    expect(md.endsWith('- Identidade fiscal\n- Tom sóbrio\n')).toBe(true);
   });
 });

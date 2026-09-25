@@ -23,26 +23,6 @@ export function normalizeInteger(raw: string): number | null {
 }
 
 /**
- * Converte texto em decimal não negativo. Aceita vírgula como separador
- * decimal (trocada por ponto antes de validar) e espaços nas pontas.
- * Qualquer outro formato vira null.
- */
-export function normalizeDecimal(raw: string): number | null {
-  const trimmed = raw.trim().replace(/,/g, '.');
-  if (!/^(\d+(\.\d+)?|\.\d+)$/.test(trimmed)) {
-    return null;
-  }
-  return Number(trimmed);
-}
-
-/**
- * Formata um número decimal para exibição no markdown, sem casas fixas.
- */
-export function formatDecimal(n: number): string {
-  return String(n);
-}
-
-/**
  * Gera o código de arquivo de uma cena a partir do seu identificador:
  * a parte numérica é completada com zero à esquerda até 2 dígitos e
  * eventuais letras (ex.: variantes "6b") são preservadas no final.

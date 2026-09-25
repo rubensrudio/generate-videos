@@ -8,6 +8,13 @@ import type {
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { writePromptFile } from './prompt-writer.ts';
+import {
+  LOGO_CONTENT_TYPES,
+  MAX_LOGO_BYTES,
+  detectLogoType,
+  readLogoFile,
+  writeLogoFile,
+} from './logo-store.ts';
 
 export interface PromptServerOptions {
   projectRoot: string;
@@ -123,7 +130,8 @@ function contentTypeFor(filePath: string): string {
  */
 function readBody(
   req: IncomingMessage,
-): Promise<{ tooLarge: true } | { tooLarge: false; body: string }> {
+  maxBytes: number = MAX_BODY_BYTES,
+): Promise<{ tooLarge: true } | { tooLarge: false; body: Buffer }> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
@@ -134,7 +142,7 @@ function readBody(
         return;
       }
       total += chunk.length;
-      if (total > MAX_BODY_BYTES) {
+      if (total > maxBytes) {
         settled = true;
         req.removeListener('data', onData);
         req.removeListener('end', onEnd);
@@ -150,7 +158,7 @@ function readBody(
         return;
       }
       settled = true;
-      resolve({ tooLarge: false, body: Buffer.concat(chunks).toString('utf8') });
+      resolve({ tooLarge: false, body: Buffer.concat(chunks) });
     };
 
     const onError = (err: Error) => {
@@ -262,7 +270,7 @@ async function handlePromptPost(
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readResult.body);
+    parsed = JSON.parse(readResult.body.toString('utf8'));
   } catch {
     const err = sendError(
       res,
@@ -329,6 +337,89 @@ function logLine(
   return reason === undefined ? base : `${base} · reason=${reason}`;
 }
 
+/**
+ * `POST /api/logo`: recebe a imagem crua no corpo (até 2 MiB), confere o tipo
+ * pela assinatura dos bytes e grava em `public/images/logo.<ext>` do projeto.
+ * `GET /api/logo`: devolve o logo atual, para a prévia no formulário.
+ */
+async function handleLogoRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: PromptServerOptions,
+  log: (line: string) => void,
+): Promise<void> {
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    const logo = await readLogoFile(options.projectRoot);
+    if (logo === null) {
+      sendError(res, 404, 'LOGO_INEXISTENTE', 'Nenhum logo enviado');
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': logo.contentType,
+      'Content-Length': logo.data.length,
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      // SVG aberto direto no navegador não executa script.
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+    });
+    res.end(req.method === 'HEAD' ? undefined : logo.data);
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST');
+    sendError(res, 405, 'METODO_NAO_PERMITIDO', 'Método não permitido');
+    return;
+  }
+
+  const startedAt = Date.now();
+  const contentType = (req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+  if (!Object.values(LOGO_CONTENT_TYPES).includes(contentType)) {
+    const err = sendError(res, 415, 'TIPO_IMAGEM_INVALIDO', 'Envie uma imagem PNG, JPG, WEBP ou SVG');
+    log(logLine(415, err.code, 0, startedAt));
+    return;
+  }
+
+  let readResult: Awaited<ReturnType<typeof readBody>>;
+  try {
+    readResult = await readBody(req, MAX_LOGO_BYTES);
+  } catch {
+    if (!req.socket?.destroyed) {
+      sendError(res, 400, 'PAYLOAD_INVALIDO', 'Imagem ausente ou inválida');
+    }
+    log(logLine(400, 'PAYLOAD_INVALIDO', 0, startedAt));
+    return;
+  }
+
+  if (readResult.tooLarge) {
+    const err = sendError(res, 413, 'PAYLOAD_GRANDE', 'Imagem acima de 2 MiB');
+    log(logLine(413, err.code, 0, startedAt));
+    drainAndClose(req, log);
+    return;
+  }
+
+  const ext = detectLogoType(readResult.body);
+  if (ext === null) {
+    const err = sendError(res, 415, 'TIPO_IMAGEM_INVALIDO', 'Envie uma imagem PNG, JPG, WEBP ou SVG');
+    log(logLine(415, err.code, readResult.body.length, startedAt));
+    return;
+  }
+
+  const result = await writeLogoFile(options.projectRoot, readResult.body, ext);
+  if (result.ok) {
+    sendJson(res, 200, { ok: true, path: result.path });
+    log(logLine(200, 'LOGO_OK', readResult.body.length, startedAt));
+    return;
+  }
+
+  const message =
+    result.code === 'PERMISSAO_NEGADA'
+      ? 'Sem permissão para gravar o logo'
+      : `Falha ao gravar o logo: ${result.reason}`;
+  sendError(res, 500, result.code, message);
+  log(logLine(500, result.code, readResult.body.length, startedAt, result.reason));
+}
+
 async function handleApiRoute(
   req: IncomingMessage,
   res: ServerResponse,
@@ -336,6 +427,11 @@ async function handleApiRoute(
   options: PromptServerOptions,
   log: (line: string) => void,
 ): Promise<void> {
+  if (pathname === '/api/logo') {
+    await handleLogoRoute(req, res, options, log);
+    return;
+  }
+
   if (pathname !== '/api/prompt') {
     sendError(res, 404, 'ROTA_INEXISTENTE', 'Rota inexistente');
     return;

@@ -2,75 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { DraftStorage, DRAFT_STORAGE_KEY } from './draft-storage';
 import { PromptFormValue } from './prompt.model';
+import { TEMPLATE_DEFAULTS } from './template-defaults';
 
 function buildValidValue(): PromptFormValue {
-  return {
-    identity: {
-      productName: 'Sendkit',
-      documentTitle: 'Product Hunt Launch',
-      usageLine: 'Use isto para X',
-    },
-    techStack: {
-      videoFramework: 'Remotion 4.x',
-      bodyFont: 'Inter',
-      headingFont: 'Inter',
-      monoFont: 'JetBrains Mono',
-      ttsService: 'ElevenLabs',
-      musicSource: 'Epidemic Sound',
-    },
-    video: {
-      width: '1920',
-      height: '1080',
-      formatDescription: '16:9',
-      fps: '30',
-      totalFrames: '900',
-    },
-    voice: {
-      voiceId: 'abc123',
-      fallbackName: 'Rachel',
-      fallbackVoiceId: 'def456',
-      model: 'eleven_multilingual_v2',
-      stability: '0.5',
-      similarityBoost: '0.75',
-      style: '0',
-      speakerBoost: true,
-      audioPrefix: 'scene',
-    },
-    music: {
-      file: 'background.mp3',
-      volume: '0.2',
-      startFrame: '0',
-    },
-    scenes: [
-      {
-        id: 'scene-1',
-        title: 'Intro',
-        narration: 'Ola',
-        startFrame: '0',
-        endFrame: '90',
-        content: 'Conteudo',
-        animation: 'fade',
-        fadeOutFrame: '80',
-      },
-    ],
-    design: {
-      colors: [{ name: 'primary', value: '#000', comment: 'cor principal' }],
-      background: 'gradient',
-      cards: 'rounded',
-      browserWindow: 'macos',
-      springDamping: '10',
-      springStiffness: '150',
-      springMass: '0.8',
-      fadeOut: '10',
-      stagger: '5',
-    },
-    process: {
-      steps: ['passo 1', 'passo 2'],
-    },
-    principles: {
-      items: ['clareza', 'simplicidade'],
-    },
-  };
+  return structuredClone({
+    ...TEMPLATE_DEFAULTS,
+    brand: { productName: 'Acme', logoPath: 'public/images/acme.png' },
+  });
 }
 
 describe('DraftStorage', () => {
@@ -130,5 +68,12 @@ describe('DraftStorage', () => {
     expect(setItemSpy).toHaveBeenCalled();
 
     setItemSpy.mockRestore();
+  });
+
+  it('rascunho v1 (modelo antigo) é descartado ao carregar', () => {
+    localStorage.setItem('prompt-form-draft:v1', JSON.stringify({ identity: { productName: 'Velho' } }));
+
+    expect(storage.load()).toBeNull();
+    expect(localStorage.getItem('prompt-form-draft:v1')).toBeNull();
   });
 });

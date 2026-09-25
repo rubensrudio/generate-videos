@@ -1,0 +1,34 @@
+<label [for]="fieldId()">{{ label() }}</label>
+
+<button
+  type="button"
+  class="color-button"
+  [id]="fieldId()"
+  [attr.aria-describedby]="errorId()"
+  [attr.aria-invalid]="control().invalid"
+  [colorPicker]="control().value"
+  (colorPickerChange)="onPick($event)"
+  cpOutputFormat="hex"
+  cpAlphaChannel="disabled"
+  cpPosition="bottom"
+  cpPresetLabel="Sugestões"
+  [cpPresetColors]="presets"
+>
+  <span
+    class="color-swatch"
+    aria-hidden="true"
+    [class.color-swatch--empty]="swatch() === 'transparent'"
+    [style.background-color]="swatch()"
+  ></span>
+  <span class="color-hex">{{ control().value || 'Escolher' }}</span>
+</button>
+
+@if (hint()) {
+  <p class="field-hint">{{ hint() }}</p>
+}
+
+<p [id]="errorId()" class="field-error" aria-live="polite">
+  @if (errorMessage(); as message) {
+    <span class="field-error-text">{{ message }}</span>
+  }
+</p>

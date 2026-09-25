@@ -1,13 +1,18 @@
 /**
- * Modelo tipado do formulário do PROMPT.md (CT-1).
+ * Modelo tipado do formulário do PROMPT.md (CT-1, v2).
+ *
+ * O formulário só pede o que muda de um projeto para outro (marca, paleta e
+ * roteiro). Tudo o que é igual em todos os vídeos — stack, fps, voz (ID,
+ * modelo, parâmetros e versão do áudio), música, fundo, cards, animação, processo e princípios —
+ * mora em `prompt-constants.ts`; o que pode ser calculado (título, id e
+ * frames das cenas, duração total, tons claros das cores) mora em
+ * `prompt-derived.ts`.
  *
  * Convenção de `id` de campo (CT-16, documental):
  * - `f-<grupo>-<campo>` para campos simples
- *   (ex.: `f-identity-productName`, `f-video-totalFrames`, `f-voice-voiceId`).
- * - `f-scenes-<i>-<campo>` (ex.: `f-scenes-0-endFrame`).
- * - `f-design-colors-<i>-name|value|comment`.
- * - `f-process-steps-<i>`.
- * - `f-principles-items-<i>`.
+ *   (ex.: `f-brand-productName`, `f-video-format`, `f-brand-logo`).
+ * - `f-scenes-<i>-<campo>` (ex.: `f-scenes-0-durationFrames`).
+ * - `f-colors-<token>` (ex.: `f-colors-green`).
  * - Botões: `btn-save`, `btn-discard-draft`, `btn-add-scene`,
  *   `btn-remove-scene-<i>`, `btn-move-up-scene-<i>`, `btn-move-down-scene-<i>`.
  * - Cabeçalho: `id="form-title"`.
@@ -20,88 +25,68 @@
  * Não possui nenhum import de runtime.
  */
 
+export const VIDEO_FORMATS = ['LANDSCAPE_16_9', 'VERTICAL_9_16', 'SQUARE_1_1'] as const;
+export type VideoFormat = (typeof VIDEO_FORMATS)[number];
+
+export const MONO_FONTS = ['SF_MONO', 'JETBRAINS_MONO'] as const;
+export type MonoFont = (typeof MONO_FONTS)[number];
+
+/** Tipo visual/narrativo da cena; define o texto de animação padrão. */
+export const SCENE_TYPES = [
+  'INTRO',
+  'CONTEXT',
+  'PAIN',
+  'AGITATION',
+  'RELIEF',
+  'LIST',
+  'PREVIEW',
+  'FLOW',
+  'METRICS',
+  'MIC_DROP',
+  'CTA',
+  'CUSTOM',
+] as const;
+export type SceneType = (typeof SCENE_TYPES)[number];
+
+/** Cores-base editáveis. As demais (card, border, purple, blobs, tons claros) são fixas ou derivadas. */
+export const BRAND_COLOR_TOKENS = [
+  'bg',
+  'foreground',
+  'muted',
+  'green',
+  'blue',
+  'orange',
+  'red',
+] as const;
+export type BrandColorToken = (typeof BRAND_COLOR_TOKENS)[number];
+export type BrandColors = Record<BrandColorToken, string>;
+
 export interface SceneValue {
-  id: string;
+  type: SceneType;
+  /** Sub-cena: reaproveita o número da cena anterior com sufixo de letra (ex.: `6b`). */
+  subScene: boolean;
   title: string;
   narration: string;
-  startFrame: string;
-  endFrame: string;
+  durationFrames: string;
   content: string;
+  /** Vazio = usa a animação padrão do tipo da cena. */
   animation: string;
-  fadeOutFrame: string;
-}
-
-export interface ColorTokenValue {
-  name: string;
-  value: string;
-  comment: string;
 }
 
 export interface PromptFormValue {
-  identity: {
+  brand: {
     productName: string;
-    documentTitle: string;
-    usageLine: string;
-  };
-  techStack: {
-    videoFramework: string;
-    bodyFont: string;
-    headingFont: string;
-    monoFont: string;
-    ttsService: string;
-    musicSource: string;
+    /** Caminho no projeto devolvido pelo upload (`POST /api/logo`), ex.: `public/images/logo.png`. */
+    logoPath: string;
   };
   video: {
-    width: string;
-    height: string;
-    formatDescription: string;
-    fps: string;
-    totalFrames: string;
-  };
-  voice: {
-    voiceId: string;
-    fallbackName: string;
-    fallbackVoiceId: string;
-    model: string;
-    stability: string;
-    similarityBoost: string;
-    style: string;
-    speakerBoost: boolean;
-    audioPrefix: string;
-  };
-  music: {
-    file: string;
-    volume: string;
-    startFrame: string;
+    format: VideoFormat;
+    monoFont: MonoFont;
   };
   scenes: SceneValue[];
-  design: {
-    colors: ColorTokenValue[];
-    background: string;
-    cards: string;
-    browserWindow: string;
-    springDamping: string;
-    springStiffness: string;
-    springMass: string;
-    fadeOut: string;
-    stagger: string;
-  };
-  process: {
-    steps: string[];
-  };
-  principles: {
-    items: string[];
-  };
-}
-
-export interface TemplateFallbacks {
-  colors: string;
-  background: string;
-  cards: string;
-  browserWindow: string;
-  animationDefaults: string;
-  processSteps: string;
-  principles: string;
+  colors: BrandColors;
+  /** Princípios específicos do projeto, um por linha (opcional). */
+  extraPrinciples: string;
 }
 
 export const MAX_SCENES = 30;
@@ -113,12 +98,12 @@ function isString(v: unknown): v is string {
   return typeof v === 'string';
 }
 
-function isStringArray(v: unknown): v is string[] {
-  return Array.isArray(v) && v.every(isString);
-}
-
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function isOneOf<T extends string>(options: readonly T[], v: unknown): v is T {
+  return typeof v === 'string' && (options as readonly string[]).includes(v);
 }
 
 function isSceneValue(v: unknown): v is SceneValue {
@@ -126,22 +111,14 @@ function isSceneValue(v: unknown): v is SceneValue {
     return false;
   }
   return (
-    isString(v['id']) &&
+    isOneOf(SCENE_TYPES, v['type']) &&
+    typeof v['subScene'] === 'boolean' &&
     isString(v['title']) &&
     isString(v['narration']) &&
-    isString(v['startFrame']) &&
-    isString(v['endFrame']) &&
+    isString(v['durationFrames']) &&
     isString(v['content']) &&
-    isString(v['animation']) &&
-    isString(v['fadeOutFrame'])
+    isString(v['animation'])
   );
-}
-
-function isColorTokenValue(v: unknown): v is ColorTokenValue {
-  if (!isRecord(v)) {
-    return false;
-  }
-  return isString(v['name']) && isString(v['value']) && isString(v['comment']);
 }
 
 export function isPromptFormValue(v: unknown): v is PromptFormValue {
@@ -149,63 +126,16 @@ export function isPromptFormValue(v: unknown): v is PromptFormValue {
     return false;
   }
 
-  const identity = v['identity'];
-  if (
-    !isRecord(identity) ||
-    !isString(identity['productName']) ||
-    !isString(identity['documentTitle']) ||
-    !isString(identity['usageLine'])
-  ) {
-    return false;
-  }
-
-  const techStack = v['techStack'];
-  if (
-    !isRecord(techStack) ||
-    !isString(techStack['videoFramework']) ||
-    !isString(techStack['bodyFont']) ||
-    !isString(techStack['headingFont']) ||
-    !isString(techStack['monoFont']) ||
-    !isString(techStack['ttsService']) ||
-    !isString(techStack['musicSource'])
-  ) {
+  const brand = v['brand'];
+  if (!isRecord(brand) || !isString(brand['productName']) || !isString(brand['logoPath'])) {
     return false;
   }
 
   const video = v['video'];
   if (
     !isRecord(video) ||
-    !isString(video['width']) ||
-    !isString(video['height']) ||
-    !isString(video['formatDescription']) ||
-    !isString(video['fps']) ||
-    !isString(video['totalFrames'])
-  ) {
-    return false;
-  }
-
-  const voice = v['voice'];
-  if (
-    !isRecord(voice) ||
-    !isString(voice['voiceId']) ||
-    !isString(voice['fallbackName']) ||
-    !isString(voice['fallbackVoiceId']) ||
-    !isString(voice['model']) ||
-    !isString(voice['stability']) ||
-    !isString(voice['similarityBoost']) ||
-    !isString(voice['style']) ||
-    typeof voice['speakerBoost'] !== 'boolean' ||
-    !isString(voice['audioPrefix'])
-  ) {
-    return false;
-  }
-
-  const music = v['music'];
-  if (
-    !isRecord(music) ||
-    !isString(music['file']) ||
-    !isString(music['volume']) ||
-    !isString(music['startFrame'])
+    !isOneOf(VIDEO_FORMATS, video['format']) ||
+    !isOneOf(MONO_FONTS, video['monoFont'])
   ) {
     return false;
   }
@@ -214,32 +144,10 @@ export function isPromptFormValue(v: unknown): v is PromptFormValue {
     return false;
   }
 
-  const design = v['design'];
-  if (
-    !isRecord(design) ||
-    !Array.isArray(design['colors']) ||
-    !design['colors'].every(isColorTokenValue) ||
-    !isString(design['background']) ||
-    !isString(design['cards']) ||
-    !isString(design['browserWindow']) ||
-    !isString(design['springDamping']) ||
-    !isString(design['springStiffness']) ||
-    !isString(design['springMass']) ||
-    !isString(design['fadeOut']) ||
-    !isString(design['stagger'])
-  ) {
+  const colors = v['colors'];
+  if (!isRecord(colors) || !BRAND_COLOR_TOKENS.every((token) => isString(colors[token]))) {
     return false;
   }
 
-  const process = v['process'];
-  if (!isRecord(process) || !isStringArray(process['steps'])) {
-    return false;
-  }
-
-  const principles = v['principles'];
-  if (!isRecord(principles) || !isStringArray(principles['items'])) {
-    return false;
-  }
-
-  return true;
+  return isString(v['extraPrinciples']);
 }

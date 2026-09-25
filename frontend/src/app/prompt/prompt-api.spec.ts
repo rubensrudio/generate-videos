@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import {
-  HttpTestingController,
-  provideHttpClientTesting,
-} from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { firstValueFrom } from 'rxjs';
 
 import { PromptApi } from './prompt-api';
@@ -84,10 +81,7 @@ describe('PromptApi', () => {
     const promise = firstValueFrom(promptApi.save('x'));
 
     const req = httpMock.expectOne('/api/prompt');
-    req.flush(
-      { code: 'PERMISSAO_NEGADA' },
-      { status: 500, statusText: 'Internal Server Error' }
-    );
+    req.flush({ code: 'PERMISSAO_NEGADA' }, { status: 500, statusText: 'Internal Server Error' });
 
     expect(await promise).toEqual({
       ok: false,
@@ -102,7 +96,7 @@ describe('PromptApi', () => {
     const req = httpMock.expectOne('/api/prompt');
     req.flush(
       { code: 'FALHA_GRAVACAO', message: 'Falha ao gravar o PROMPT.md: ENOSPC' },
-      { status: 500, statusText: 'Internal Server Error' }
+      { status: 500, statusText: 'Internal Server Error' },
     );
 
     expect(await promise).toEqual({
@@ -144,5 +138,45 @@ describe('PromptApi', () => {
 
     await promise;
     expect(errored).toBe(false);
+  });
+
+  describe('uploadLogo', () => {
+    const file = new File([new Uint8Array([0x89, 0x50])], 'logo.png', { type: 'image/png' });
+
+    it('faz POST do arquivo cru para /api/logo com o Content-Type da imagem', async () => {
+      const promise = firstValueFrom(promptApi.uploadLogo(file));
+
+      const req = httpMock.expectOne('/api/logo');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toBe(file);
+      expect(req.request.headers.get('Content-Type')).toBe('image/png');
+      req.flush({ ok: true, path: 'public/images/logo.png' });
+
+      expect(await promise).toEqual({ ok: true, path: 'public/images/logo.png' });
+    });
+
+    it('erro do servidor: devolve a mensagem do corpo', async () => {
+      const promise = firstValueFrom(promptApi.uploadLogo(file));
+
+      httpMock
+        .expectOne('/api/logo')
+        .flush(
+          { ok: false, code: 'PAYLOAD_GRANDE', message: 'Imagem acima de 2 MiB' },
+          { status: 413, statusText: 'Too Large' },
+        );
+
+      expect(await promise).toEqual({ ok: false, message: 'Imagem acima de 2 MiB' });
+    });
+
+    it('erro de rede: servidor indisponível', async () => {
+      const promise = firstValueFrom(promptApi.uploadLogo(file));
+
+      httpMock.expectOne('/api/logo').error(new ProgressEvent('error'), { status: 0 });
+
+      expect(await promise).toEqual({
+        ok: false,
+        message: 'Não foi possível enviar o logo: servidor indisponível',
+      });
+    });
   });
 });

@@ -3,15 +3,29 @@
 :root {
   --color-bg: #f0ebf8;
   --color-surface: #ffffff;
+  --color-surface-sunken: #f8f6fc;
   --color-border: #dadce0;
+  --color-border-soft: #e8e6ed;
   --color-text: #202124;
   --color-text-muted: #5f6368;
+  --color-text-faint: #80868b;
   --color-primary: #673ab7;
+  --color-primary-soft: #f3eefb;
   --color-error: #d93025;
   --color-error-bg: #fce8e6;
   --color-success: #188038;
   --color-success-bg: #e6f4ea;
   --radius: 8px;
+  --radius-sm: 6px;
+
+  /* 4px rhythm: tight and generous intervals stay deliberate instead of one repeated gap. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
 }
 
 * {
@@ -35,51 +49,174 @@ body {
 
 body {
   min-height: 100vh;
-  padding: 32px 16px 80px;
+  /* Espaço extra embaixo para o rodapé fixo não cobrir os botões. */
+  padding: var(--space-6) var(--space-4) 112px;
 }
 
-/* Coluna central estilo Google Forms */
+/* Coluna central estilo Google Forms — cada filho direto do body (menos o
+   toast, que é fixed) compartilha a mesma largura e fica centralizado. */
+body > *:not(#save-toast) {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .form-container,
 .app-container {
-  max-width: 760px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space-6);
 }
 
-/* Cartão por grupo de campos */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-5);
+}
+
+.wizard-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: 0;
+}
+
+#form-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+#btn-discard-draft {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+#required-legend {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  margin: var(--space-2) 0 0;
+}
+
+/* Cartão por grupo de campos. Seletores usam o nome do componente Angular
+   (uma tag custom é um seletor CSS válido) em vez de `form > fieldset`
+   porque cada seção agora mora dentro de um `.wizard-panel` + host do
+   componente — dois níveis a mais entre o `<form>` e o `<fieldset>`. */
 .form-card,
-.field-group {
+.field-group,
+app-general-sections > fieldset,
+app-design-system-section > section,
+.scenes-section {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: var(--space-5);
   position: relative;
   overflow: hidden;
+  margin: 0;
 }
 
-/* Faixa de cor no topo do cartão */
-.form-card::before,
-.field-group::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 8px;
-  background: var(--color-primary);
+app-general-sections > fieldset + fieldset {
+  margin-top: var(--space-5);
 }
 
-.form-card--error::before,
-.field-group--error::before {
-  background: var(--color-error);
+/* Título de cartão de topo (legend / h2) — ancora a hierarquia da seção */
+app-general-sections > fieldset > legend,
+app-design-system-section > section > h2 {
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-primary);
+  padding: 0;
+  margin: 0 0 var(--space-4);
+}
+
+app-design-system-section > section > h2 {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+/* Subseções dentro de um cartão (ex.: Cores, Fundo, Cards) usam ritmo mais leve */
+app-design-system-section > section > section {
+  margin-top: var(--space-5);
+}
+
+app-design-system-section > section > section > h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 var(--space-1);
+}
+
+/* Campos dentro de um mesmo cartão têm ritmo mais apertado que entre cartões */
+fieldset > app-text-field,
+fieldset > .checkbox-field,
+fieldset > .field-row,
+section > app-text-field,
+section > .field-row {
+  display: block;
+  margin-top: var(--space-4);
+}
+
+fieldset > app-text-field:first-of-type,
+fieldset > .checkbox-field:first-of-type,
+fieldset > .field-row:first-of-type,
+section > app-text-field:first-of-type,
+section > .field-row:first-of-type {
+  margin-top: 0;
+}
+
+/* Campos curtos e relacionados (largura/altura, fps/frames…) lado a lado
+   em vez de empilhados — reduz o comprimento da coluna sem perder o rótulo
+   de cada campo. */
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.field-row.field-row-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 520px) {
+  .field-row,
+  .field-row.field-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field-hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin: var(--space-1) 0 0;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checkbox-field input {
+  width: auto;
+}
+
+.checkbox-field label {
+  margin: 0;
 }
 
 label {
   display: block;
   font-weight: 500;
-  margin-bottom: 8px;
+  font-size: 13px;
+  margin-bottom: var(--space-1);
 }
 
 input,
@@ -101,18 +238,63 @@ textarea {
   color: var(--color-text);
 }
 
+/* Botões: peso visual segue papel — primário sólido, secundário contornado,
+   destrutivo discreto até o hover. Repetir o mesmo roxo sólido em toda ação
+   (adicionar, remover, mover, salvar) achatava a hierarquia do formulário. */
 button {
   cursor: pointer;
-  padding: 10px 20px;
-  border-radius: 4px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
-  background: var(--color-primary);
-  color: #fff;
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-primary-soft);
 }
 
 button:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+#btn-save {
+  background: var(--color-primary);
+  color: #fff;
+  padding: 10px 24px;
+}
+
+#btn-save:hover:not(:disabled) {
+  background: #5a2fa0;
+}
+
+#btn-discard-draft,
+.text-list-actions button,
+.scene-actions button {
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.text-list-actions button:hover:not(:disabled),
+.scene-actions button:hover:not(:disabled) {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+
+[id^="btn-remove-"] {
+  color: var(--color-error);
+}
+
+[id^="btn-remove-"]:hover:not(:disabled) {
+  background: var(--color-error-bg);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
 }
 
 /* Foco visível em inputs e botões (acessibilidade) */
@@ -135,8 +317,8 @@ a:focus-visible {
   gap: 4px;
 }
 
-.field-error::before {
-  content: "⚠";
+.field-error-text::before {
+  content: "⚠ ";
   font-weight: bold;
 }
 
@@ -168,7 +350,8 @@ a:focus-visible {
 /* Toast de salvamento */
 #save-toast {
   position: fixed;
-  bottom: 24px;
+  /* Acima do rodapé fixo. */
+  bottom: 64px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--color-success-bg);
@@ -178,4 +361,516 @@ a:focus-visible {
   padding: 12px 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 1000;
+}
+
+.text-list-section {
+  border: none !important;
+  padding: 0 !important;
+}
+
+.text-list-section > legend {
+  margin-bottom: var(--space-4) !important;
+}
+
+.text-list-hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin-top: var(--space-3);
+}
+
+.scenes-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.timeline-warnings:empty {
+  display: none;
+}
+
+.timeline-warnings p {
+  color: var(--color-error);
+  font-size: 13px;
+  margin: var(--space-1) 0 0;
+}
+
+.scenes-error {
+  color: var(--color-error);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------------
+ * app-items-table: uma linha resumida por item (cena, cor, passo,
+ * princípio) em vez de um cartão cheio por item — é o que resolve o
+ * amontoado nas seções com muitas entradas (ex.: 18 cores por padrão).
+ * A edição completa acontece no drawer lateral (app-drawer).
+ * --------------------------------------------------------------------- */
+
+.items-table-empty {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-style: italic;
+  margin: 0 0 var(--space-3);
+}
+
+.items-table-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.items-table-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+}
+
+.items-table-row--invalid {
+  border-color: var(--color-error);
+}
+
+.items-table-index {
+  color: var(--color-text-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  width: 20px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.items-table-summary {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.items-table-title {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.items-table-subtitle {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.items-table-actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.items-table-actions button {
+  padding: 6px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.items-table-actions button:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.items-table-edit {
+  color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.items-table-edit:hover:not(:disabled) {
+  background: var(--color-primary-soft) !important;
+}
+
+.items-table-remove {
+  color: var(--color-error) !important;
+}
+
+.items-table-remove:hover:not(:disabled) {
+  background: var(--color-error-bg) !important;
+}
+
+.items-table-add {
+  margin-top: var(--space-3);
+}
+
+.items-table-add button {
+  border: 1px dashed var(--color-primary);
+  width: 100%;
+}
+
+.items-table-add button:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+}
+
+.items-table-add p {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin: var(--space-1) 0 0;
+}
+
+/* ---------------------------------------------------------------------
+ * app-drawer: painel lateral para editar o item selecionado na tabela.
+ * --------------------------------------------------------------------- */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(32, 33, 36, 0.4);
+  z-index: 1100;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 100vw);
+  background: var(--color-surface);
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.2);
+  z-index: 1101;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border-soft);
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+}
+
+.drawer-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.drawer-close {
+  padding: 6px;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
+.drawer-close:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+}
+
+.drawer-body {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.drawer-body app-text-field:first-child {
+  margin-top: 0;
+}
+
+.drawer-body [formGroup] > app-text-field,
+.drawer-body [formGroup] > .field-row {
+  display: block;
+  margin-top: var(--space-4);
+}
+
+.drawer-body [formGroup] > app-text-field:first-child,
+.drawer-body [formGroup] > .field-row:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .drawer {
+    width: 100vw;
+  }
+}
+
+/* ---------------------------------------------------------------------
+ * Navegação por abas (wizard) — cada seção do formulário fica isolada em
+ * uma aba; avançar exige que a aba atual esteja válida.
+ * --------------------------------------------------------------------- */
+
+.wizard-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-3);
+}
+
+.wizard-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.wizard-tab-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-faint);
+  font-size: 11px;
+}
+
+.wizard-tab:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+
+.wizard-tab--active {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.wizard-tab--active .wizard-tab-index {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.wizard-tab--complete .wizard-tab-index::after {
+  content: "✓";
+}
+
+.wizard-tab--complete:not(.wizard-tab--active) .wizard-tab-index {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.wizard-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* `display: flex` acima anula o atributo `hidden`: sem isto, todas as abas
+   apareciam ao mesmo tempo. */
+.wizard-panel[hidden] {
+  display: none;
+}
+
+.wizard-review h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 var(--space-1);
+}
+
+.review-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.review-summary dt {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.review-summary dd {
+  margin: var(--space-1) 0 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------
+ * Campos de enum, cores da marca e prévia do markdown.
+ * --------------------------------------------------------------------- */
+
+fieldset > app-select-field,
+fieldset > app-logo-field,
+.field-row > app-select-field,
+.drawer-body [formGroup] > app-select-field,
+.drawer-body [formGroup] > .checkbox-field {
+  display: block;
+}
+
+.drawer-body [formGroup] > .checkbox-field {
+  display: flex;
+  margin-top: var(--space-4);
+}
+
+app-design-system-section > section + section {
+  margin-top: var(--space-5);
+}
+
+/* O diálogo do seletor de cor abre dentro do cartão; sem isto, o
+   `overflow: hidden` do cartão o cortava. */
+app-design-system-section > section {
+  overflow: visible;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.color-button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.color-button:hover {
+  border-color: var(--color-primary);
+}
+
+.color-button[aria-invalid="true"] {
+  border-color: var(--color-error);
+}
+
+.color-swatch {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+/* Xadrez quando a cor é inválida (transparente). */
+.color-swatch--empty {
+  background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%),
+    linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%);
+  background-size: 10px 10px;
+  background-position: 0 0, 5px 5px;
+}
+
+.color-hex {
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.logo-field-label {
+  display: block;
+  font-weight: 500;
+  font-size: 13px;
+  margin-bottom: var(--space-1);
+}
+
+.logo-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.logo-preview {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-faint);
+  font-size: 11px;
+  overflow: hidden;
+}
+
+.logo-preview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logo-field-body button {
+  border: 1px solid var(--color-border);
+}
+
+.logo-field-body code {
+  font-size: 12px;
+}
+
+.fixed-list {
+  margin: var(--space-2) 0 var(--space-4);
+  padding-left: var(--space-5);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+#scenes-total {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.markdown-preview {
+  margin: var(--space-4) 0 0;
+  padding: var(--space-4);
+  max-height: 480px;
+  overflow: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Rodapé sempre visível com o link da empresa. */
+.app-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 900;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.app-footer a {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
 }

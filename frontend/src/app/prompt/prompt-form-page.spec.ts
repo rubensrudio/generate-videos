@@ -32,6 +32,26 @@ async function settle(fixture: ReturnType<typeof createFixture>) {
   fixture.detectChanges();
 }
 
+/** Simula o logo já enviado (o upload em si é testado em `logo-field.spec.ts`). */
+function setUploadedLogo(fixture: ReturnType<typeof createFixture>): void {
+  const page = fixture.componentInstance as unknown as { form: () => any };
+  const logo = page.form().controls.brand.controls.logoPath;
+  if (logo.value === '') {
+    logo.setValue('public/images/logo.png');
+  }
+}
+
+/** Vai direto para a aba Revisão (só é alcançável se todas as abas
+ * anteriores estiverem válidas) para poder clicar em `#btn-save`. */
+async function goToReview(fixture: ReturnType<typeof createFixture>): Promise<void> {
+  setUploadedLogo(fixture);
+  fixture.detectChanges();
+  const compiled = fixture.nativeElement as HTMLElement;
+  (compiled.querySelector('#tab-review') as HTMLButtonElement).click();
+  fixture.detectChanges();
+  await settle(fixture);
+}
+
 describe('PromptFormPage', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -41,15 +61,19 @@ describe('PromptFormPage', () => {
     localStorage.clear();
   });
 
-  it('sem rascunho: título Sendkit, 11 blocos de cena, e Salvar (sem alterações) chama o stub 1 vez', async () => {
+  it('sem rascunho: título Sendkit, 11 cenas, e Salvar (só com o logo enviado) chama o stub 1 vez', async () => {
     const api = configure();
     const fixture = createFixture();
     await settle(fixture);
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('#f-identity-documentTitle')).toBeTruthy();
-    expect((compiled.querySelector('#f-identity-productName') as HTMLInputElement).value).toBe('Sendkit');
-    expect(compiled.querySelectorAll('.scene-block').length).toBe(11);
+    expect((compiled.querySelector('#f-brand-productName') as HTMLInputElement).value).toBe(
+      'Sendkit',
+    );
+    const componentInstance = fixture.componentInstance as unknown as { form: () => any };
+    expect(componentInstance.form().controls.scenes.length).toBe(11);
+
+    await goToReview(fixture);
 
     const saveBtn = compiled.querySelector('#btn-save') as HTMLButtonElement;
     saveBtn.click();
@@ -63,7 +87,7 @@ describe('PromptFormPage', () => {
     configure();
     const draft: PromptFormValue = {
       ...TEMPLATE_DEFAULTS,
-      identity: { ...TEMPLATE_DEFAULTS.identity, productName: 'Acme' },
+      brand: { ...TEMPLATE_DEFAULTS.brand, productName: 'Acme' },
     };
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
 
@@ -71,7 +95,7 @@ describe('PromptFormPage', () => {
     await settle(fixture);
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect((compiled.querySelector('#f-identity-productName') as HTMLInputElement).value).toBe('Acme');
+    expect((compiled.querySelector('#f-brand-productName') as HTMLInputElement).value).toBe('Acme');
   });
 
   it('editar um campo chama DraftStorage.save com o valor novo', async () => {
@@ -82,7 +106,7 @@ describe('PromptFormPage', () => {
     const saveSpy = vi.spyOn(DraftStorage.prototype, 'save');
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const input = compiled.querySelector('#f-identity-productName') as HTMLInputElement;
+    const input = compiled.querySelector('#f-brand-productName') as HTMLInputElement;
     input.value = 'Novo Nome';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
@@ -90,18 +114,43 @@ describe('PromptFormPage', () => {
 
     expect(saveSpy).toHaveBeenCalled();
     const lastCallArg = saveSpy.mock.calls[saveSpy.mock.calls.length - 1][0];
-    expect(lastCallArg.identity.productName).toBe('Novo Nome');
+    expect(lastCallArg.brand.productName).toBe('Novo Nome');
 
     saveSpy.mockRestore();
   });
 
-  it('formulário vazio + Salvar: 0 chamadas ao PromptApi, faixa de validação e foco no primeiro campo inválido', async () => {
+  it('campo obrigatório vazio na aba atual: Avançar não sai da aba e mostra o erro no campo', async () => {
+    const fixture = createFixture();
+    await settle(fixture);
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const productName = compiled.querySelector('#f-brand-productName') as HTMLInputElement;
+    productName.value = '';
+    productName.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await settle(fixture);
+
+    const advanceBtn = compiled.querySelector('#btn-wizard-advance') as HTMLButtonElement;
+    advanceBtn.click();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    expect(compiled.querySelector('#tab-general')?.getAttribute('aria-current')).toBe('step');
+    expect(compiled.querySelector('#tab-review')?.hasAttribute('disabled')).toBe(true);
+    expect(compiled.querySelector('#f-brand-productName-error')?.textContent).toContain(
+      'Campo obrigatório',
+    );
+  });
+
+  it('formulário inválido chega a ficar em Revisão (via API direta) + Salvar: 0 chamadas, faixa de validação, volta para a aba e foca o campo inválido', async () => {
     const api = configure();
     const fixture = createFixture();
     await settle(fixture);
 
+    await goToReview(fixture);
+
     const componentInstance = fixture.componentInstance as unknown as { form: () => any };
-    componentInstance.form().controls.identity.controls.documentTitle.setValue('');
+    componentInstance.form().controls.brand.controls.productName.setValue('');
     fixture.detectChanges();
     await settle(fixture);
 
@@ -110,11 +159,13 @@ describe('PromptFormPage', () => {
     saveBtn.click();
     fixture.detectChanges();
     await settle(fixture);
+    await settle(fixture);
 
     expect(api.save).toHaveBeenCalledTimes(0);
     const banner = compiled.querySelector('#validation-banner');
     expect(banner?.textContent).toContain('Corrija os 1 campos destacados antes de salvar');
-    expect(document.activeElement?.id).toBe('f-identity-documentTitle');
+    expect(compiled.querySelector('#tab-general')?.getAttribute('aria-current')).toBe('step');
+    expect(document.activeElement?.id).toBe('f-brand-productName');
   });
 
   it('stub {ok:true,path}: toast de sucesso e valores mantidos', async () => {
@@ -123,6 +174,7 @@ describe('PromptFormPage', () => {
     await settle(fixture);
 
     const compiled = fixture.nativeElement as HTMLElement;
+    await goToReview(fixture);
     const saveBtn = compiled.querySelector('#btn-save') as HTMLButtonElement;
     saveBtn.click();
     fixture.detectChanges();
@@ -132,7 +184,9 @@ describe('PromptFormPage', () => {
     expect(toast?.textContent).toContain(
       'Requisitos preenchidos com sucesso. PROMPT.md salvo em /r/PROMPT.md',
     );
-    expect((compiled.querySelector('#f-identity-productName') as HTMLInputElement).value).toBe('Sendkit');
+    expect((compiled.querySelector('#f-brand-productName') as HTMLInputElement).value).toBe(
+      'Sendkit',
+    );
     expect(api.save).toHaveBeenCalledTimes(1);
   });
 
@@ -146,6 +200,7 @@ describe('PromptFormPage', () => {
     await settle(fixture);
 
     const compiled = fixture.nativeElement as HTMLElement;
+    await goToReview(fixture);
     const saveBtn = compiled.querySelector('#btn-save') as HTMLButtonElement;
     saveBtn.click();
     fixture.detectChanges();
@@ -153,7 +208,9 @@ describe('PromptFormPage', () => {
 
     const banner = compiled.querySelector('#save-error-banner');
     expect(banner?.textContent).toContain('Sem permissão para gravar');
-    expect((compiled.querySelector('#f-identity-productName') as HTMLInputElement).value).toBe('Sendkit');
+    expect((compiled.querySelector('#f-brand-productName') as HTMLInputElement).value).toBe(
+      'Sendkit',
+    );
   });
 
   it('stub {ok:false,kind:indisponivel}: mesma faixa com a mensagem', async () => {
@@ -166,6 +223,7 @@ describe('PromptFormPage', () => {
     await settle(fixture);
 
     const compiled = fixture.nativeElement as HTMLElement;
+    await goToReview(fixture);
     const saveBtn = compiled.querySelector('#btn-save') as HTMLButtonElement;
     saveBtn.click();
     fixture.detectChanges();
@@ -184,6 +242,7 @@ describe('PromptFormPage', () => {
     await settle(fixture);
 
     const compiled = fixture.nativeElement as HTMLElement;
+    await goToReview(fixture);
     const saveBtn = compiled.querySelector('#btn-save') as HTMLButtonElement;
     saveBtn.click();
     fixture.detectChanges();
@@ -204,50 +263,102 @@ describe('PromptFormPage', () => {
     await settle(fixture);
   });
 
-  it('cenas com intervalo na linha do tempo (sem campos inválidos): save chamado 1 vez', async () => {
-    const api = configure();
+  it('Revisão mostra a prévia do markdown com os valores derivados', async () => {
+    configure();
     const fixture = createFixture();
     await settle(fixture);
 
     const componentInstance = fixture.componentInstance as unknown as { form: () => any };
-    const secondScene = componentInstance.form().controls.scenes.at(1);
-    secondScene.controls.startFrame.setValue('140');
+    componentInstance.form().controls.brand.controls.productName.setValue('Acme');
     fixture.detectChanges();
+    await settle(fixture);
+
+    await goToReview(fixture);
+
+    const preview =
+      (fixture.nativeElement as HTMLElement).querySelector('#markdown-preview')?.textContent ?? '';
+    expect(preview).toContain('# Acme — Vídeo de Apresentação');
+    expect(preview).toContain('| Duração total | 1389 frames (~46.3 segundos) |');
+  });
+
+  it('sem logo enviado: Avançar fica na aba e mostra o erro do logo', async () => {
+    configure();
+    const fixture = createFixture();
     await settle(fixture);
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const saveBtn = compiled.querySelector('#btn-save') as HTMLButtonElement;
-    saveBtn.click();
+    (compiled.querySelector('#btn-wizard-advance') as HTMLButtonElement).click();
     fixture.detectChanges();
     await settle(fixture);
 
-    expect(api.save).toHaveBeenCalledTimes(1);
+    expect(compiled.querySelector('#tab-general')?.getAttribute('aria-current')).toBe('step');
+    expect(compiled.querySelector('#f-brand-logo-error')?.textContent).toContain(
+      'Escolha o arquivo do logo',
+    );
   });
 
-  it('productName="Acme": #form-title e Title.getTitle() iguais; vazio: só "Gerador de PROMPT.md"', async () => {
+  it('só o painel da aba ativa fica visível', async () => {
+    configure();
+    const fixture = createFixture();
+    await settle(fixture);
+    setUploadedLogo(fixture);
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const visiblePanels = () =>
+      Array.from(compiled.querySelectorAll<HTMLElement>('.wizard-panel')).filter(
+        (panel) => !panel.hidden,
+      );
+
+    expect(
+      visiblePanels().map((panel) => panel.querySelector('app-general-sections') !== null),
+    ).toEqual([true]);
+
+    (compiled.querySelector('#tab-scenes') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await settle(fixture);
+    expect(visiblePanels().length).toBe(1);
+    expect(visiblePanels()[0].querySelector('app-scenes-section')).toBeTruthy();
+
+    await goToReview(fixture);
+    expect(visiblePanels().length).toBe(1);
+    expect(visiblePanels()[0].classList).toContain('wizard-review');
+  });
+
+  it('a tela não tem campos de voz', async () => {
+    configure();
+    const fixture = createFixture();
+    await settle(fixture);
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('[id^="f-voice-"]')).toBeNull();
+    expect(compiled.textContent).not.toContain('Voice ID');
+  });
+
+  it('productName="Acme": #form-title e Title.getTitle() iguais; vazio: só "ApresentaAI"', async () => {
     configure();
     const fixture = createFixture();
     await settle(fixture);
 
     const titleService = TestBed.inject(Title);
     const compiled = fixture.nativeElement as HTMLElement;
-    const input = compiled.querySelector('#f-identity-productName') as HTMLInputElement;
+    const input = compiled.querySelector('#f-brand-productName') as HTMLInputElement;
 
     input.value = 'Acme';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     await settle(fixture);
 
-    expect(compiled.querySelector('#form-title')?.textContent).toBe('Gerador de PROMPT.md — Acme');
-    expect(titleService.getTitle()).toBe('Gerador de PROMPT.md — Acme');
+    expect(compiled.querySelector('#form-title')?.textContent).toBe('ApresentaAI — Acme');
+    expect(titleService.getTitle()).toBe('ApresentaAI — Acme');
 
     input.value = '';
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     await settle(fixture);
 
-    expect(compiled.querySelector('#form-title')?.textContent).toBe('Gerador de PROMPT.md');
-    expect(titleService.getTitle()).toBe('Gerador de PROMPT.md');
+    expect(compiled.querySelector('#form-title')?.textContent).toBe('ApresentaAI');
+    expect(titleService.getTitle()).toBe('ApresentaAI');
   });
 
   it('#required-legend contém "* Obrigatório"', async () => {
@@ -265,7 +376,7 @@ describe('PromptFormPage', () => {
       DRAFT_STORAGE_KEY,
       JSON.stringify({
         ...TEMPLATE_DEFAULTS,
-        identity: { ...TEMPLATE_DEFAULTS.identity, productName: 'Rascunho' },
+        brand: { ...TEMPLATE_DEFAULTS.brand, productName: 'Rascunho' },
       }),
     );
 
@@ -273,7 +384,9 @@ describe('PromptFormPage', () => {
     await settle(fixture);
 
     const compiled = fixture.nativeElement as HTMLElement;
-    expect((compiled.querySelector('#f-identity-productName') as HTMLInputElement).value).toBe('Rascunho');
+    expect((compiled.querySelector('#f-brand-productName') as HTMLInputElement).value).toBe(
+      'Rascunho',
+    );
 
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const discardBtn = compiled.querySelector('#btn-discard-draft') as HTMLButtonElement;
@@ -281,7 +394,9 @@ describe('PromptFormPage', () => {
     fixture.detectChanges();
     await settle(fixture);
 
-    expect((compiled.querySelector('#f-identity-productName') as HTMLInputElement).value).toBe('Sendkit');
+    expect((compiled.querySelector('#f-brand-productName') as HTMLInputElement).value).toBe(
+      'Sendkit',
+    );
     expect(localStorage.getItem(DRAFT_STORAGE_KEY)).toBeNull();
 
     confirmSpy.mockRestore();
@@ -293,7 +408,7 @@ describe('PromptFormPage', () => {
       DRAFT_STORAGE_KEY,
       JSON.stringify({
         ...TEMPLATE_DEFAULTS,
-        identity: { ...TEMPLATE_DEFAULTS.identity, productName: 'Rascunho' },
+        brand: { ...TEMPLATE_DEFAULTS.brand, productName: 'Rascunho' },
       }),
     );
 
@@ -307,7 +422,9 @@ describe('PromptFormPage', () => {
     fixture.detectChanges();
     await settle(fixture);
 
-    expect((compiled.querySelector('#f-identity-productName') as HTMLInputElement).value).toBe('Rascunho');
+    expect((compiled.querySelector('#f-brand-productName') as HTMLInputElement).value).toBe(
+      'Rascunho',
+    );
 
     confirmSpy.mockRestore();
   });

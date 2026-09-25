@@ -1,0 +1,15 @@
+<label [for]="fieldId()">{{ label() }}</label>
+
+<select
+  [id]="fieldId()"
+  [formControl]="control()"
+  [attr.aria-describedby]="hint() ? fieldId() + '-hint' : null"
+>
+  @for (option of options(); track option.value) {
+    <option [value]="option.value">{{ option.label }}</option>
+  }
+</select>
+
+@if (hint()) {
+  <p [id]="fieldId() + '-hint'" class="field-hint">{{ hint() }}</p>
+}

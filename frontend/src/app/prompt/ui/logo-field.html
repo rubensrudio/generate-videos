@@ -1,0 +1,58 @@
+<span class="logo-field-label" [id]="fieldId() + '-label'">
+  Logo<span aria-hidden="true"> *</span><span class="sr-only">obrigatório</span>
+</span>
+
+<div class="logo-field">
+  <div class="logo-preview">
+    @if (previewSrc(); as src) {
+      <img [src]="src" alt="Prévia do logo" (error)="onPreviewError()" />
+    } @else {
+      <span aria-hidden="true">Sem logo</span>
+    }
+  </div>
+
+  <div class="logo-field-body">
+    <input
+      #fileInput
+      type="file"
+      class="sr-only"
+      tabindex="-1"
+      [id]="fieldId()"
+      [accept]="accept"
+      (change)="onFileSelected($event)"
+    />
+    <button
+      type="button"
+      [id]="fieldId() + '-button'"
+      [disabled]="uploading()"
+      [attr.aria-labelledby]="fieldId() + '-label ' + fieldId() + '-button'"
+      [attr.aria-describedby]="errorId()"
+      [attr.aria-invalid]="errorMessage() !== null"
+      (click)="fileInput.click()"
+    >
+      @if (uploading()) {
+        Enviando...
+      } @else if (control().value) {
+        Trocar arquivo
+      } @else {
+        Escolher arquivo
+      }
+    </button>
+
+    @if (control().value) {
+      <p class="field-hint">
+        @if (fileName(); as name) {
+          {{ name }} →
+        }
+        <code>{{ control().value }}</code>
+      </p>
+    }
+    <p class="field-hint">PNG, JPG, WEBP ou SVG, até 2 MB. Quadrado, versão escura.</p>
+  </div>
+</div>
+
+<p [id]="errorId()" class="field-error" aria-live="polite">
+  @if (errorMessage(); as message) {
+    <span class="field-error-text">{{ message }}</span>
+  }
+</p>

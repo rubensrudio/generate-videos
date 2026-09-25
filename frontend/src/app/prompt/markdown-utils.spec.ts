@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   audioFileName,
   escapeTableCell,
-  formatDecimal,
   framesToSeconds,
-  normalizeDecimal,
   normalizeInteger,
   sceneFileCode,
   toLf,
@@ -39,34 +37,6 @@ describe('normalizeInteger', () => {
 
   it('rejeita negativos', () => {
     expect(normalizeInteger('-1')).toBeNull();
-  });
-});
-
-describe('normalizeDecimal', () => {
-  it('aceita vírgula como separador decimal', () => {
-    expect(normalizeDecimal('0,3')).toBe(0.3);
-  });
-
-  it('aceita decimal sem parte inteira', () => {
-    expect(normalizeDecimal('.5')).toBe(0.5);
-  });
-
-  it('faz trim de espaços nas pontas', () => {
-    expect(normalizeDecimal(' 1 ')).toBe(1);
-  });
-
-  it('rejeita múltiplas vírgulas', () => {
-    expect(normalizeDecimal('1,2,3')).toBeNull();
-  });
-
-  it('rejeita texto não numérico', () => {
-    expect(normalizeDecimal('abc')).toBeNull();
-  });
-});
-
-describe('formatDecimal', () => {
-  it('formata sem casas fixas', () => {
-    expect(formatDecimal(0.3)).toBe('0.3');
   });
 });
 

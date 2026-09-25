@@ -1,0 +1,17 @@
+@if (open()) {
+  <div class="drawer-backdrop" (click)="onBackdropClick()"></div>
+
+  <aside class="drawer" role="dialog" aria-modal="true" [attr.aria-label]="title()">
+    <div class="drawer-header">
+      <h3>{{ title() }}</h3>
+      <button type="button" class="drawer-close" (click)="close.emit()">
+        <span aria-hidden="true">✕</span>
+        <span class="sr-only">Fechar</span>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <ng-content />
+    </div>
+  </aside>
+}
