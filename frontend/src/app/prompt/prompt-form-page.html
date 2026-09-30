@@ -1,0 +1,53 @@
+<h1 id="form-title">{{ formTitle() }}</h1>
+
+<p id="required-legend">* Obrigatório</p>
+
+@if (validationBanner()) {
+  <p id="validation-banner" role="alert">{{ validationBanner() }}</p>
+}
+
+@if (saveErrorBanner()) {
+  <p id="save-error-banner" role="alert">{{ saveErrorBanner() }}</p>
+}
+
+@if (saveToast()) {
+  <p id="save-toast" role="status">{{ saveToast() }}</p>
+}
+
+<form [formGroup]="form()">
+  <app-general-sections [form]="form()" />
+
+  <app-scenes-section
+    [scenes]="form().controls.scenes"
+    [totalFrames]="form().controls.video.controls.totalFrames"
+    (structureChange)="onStructureChange()"
+  />
+
+  <app-design-system-section [design]="form().controls.design" (structureChange)="onStructureChange()" />
+
+  <app-text-list-section
+    [items]="form().controls.process.controls.steps"
+    legend="Processo"
+    idPrefix="f-process-steps"
+    [ordered]="true"
+    (structureChange)="onStructureChange()"
+  />
+
+  <app-text-list-section
+    [items]="form().controls.principles.controls.items"
+    legend="Princípios"
+    idPrefix="f-principles-items"
+    [ordered]="false"
+    (structureChange)="onStructureChange()"
+  />
+
+  <div class="form-actions">
+    <button type="button" id="btn-save" (click)="onSave()" [disabled]="saving()">
+      {{ saving() ? 'Salvando...' : 'Salvar' }}
+    </button>
+
+    <button type="button" id="btn-discard-draft" (click)="onDiscardDraft()">
+      Descartar rascunho
+    </button>
+  </div>
+</form>
