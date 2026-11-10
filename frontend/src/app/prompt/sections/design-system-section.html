@@ -1,0 +1,37 @@
+<section aria-labelledby="design-colors-heading">
+  <h2 id="design-colors-heading">Cores da marca</h2>
+  <p class="field-hint">
+    Clique em uma cor para escolher. Os tons claros (fundos de badge, brilhos) são gerados a partir
+    delas; card, borda, roxo e os blobs do fundo são fixos.
+  </p>
+
+  <div class="color-grid">
+    @for (token of tokens; track token) {
+      <app-color-field
+        [control]="control(token)"
+        [fieldId]="'f-colors-' + token"
+        [label]="labels[token].label"
+        [hint]="labels[token].comment || undefined"
+      />
+    }
+  </div>
+</section>
+
+<section aria-labelledby="design-principles-heading">
+  <h2 id="design-principles-heading">Princípios de design</h2>
+  <p class="field-hint">Sempre incluídos:</p>
+  <ul class="fixed-list">
+    @for (item of basePrinciples; track item) {
+      <li>{{ item }}</li>
+    }
+  </ul>
+
+  <app-text-field
+    [control]="extraPrinciples()"
+    fieldId="f-extraPrinciples"
+    label="Princípios adicionais"
+    [multiline]="true"
+    [maxLength]="longTextMax"
+    hint="Opcional. Um por linha (ex.: Identidade fiscal: design inspirado em documentos fiscais)."
+  />
+</section>

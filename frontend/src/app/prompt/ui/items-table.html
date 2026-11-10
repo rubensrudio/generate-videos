@@ -1,0 +1,76 @@
+<div class="items-table" role="table">
+  @if (rows().length === 0) {
+    <p class="items-table-empty">{{ emptyHint() ?? 'Nenhum item ainda.' }}</p>
+  } @else {
+    <div class="items-table-rows" role="rowgroup">
+      @for (row of rows(); track $index; let i = $index) {
+        <div class="items-table-row" [class.items-table-row--invalid]="row.invalid" role="row">
+          <span class="items-table-index" aria-hidden="true">{{ i + 1 }}</span>
+
+          <div class="items-table-summary">
+            <span class="items-table-title">{{ row.title }}</span>
+            @if (row.subtitle) {
+              <span class="items-table-subtitle">{{ row.subtitle }}</span>
+            }
+          </div>
+
+          <div class="items-table-actions">
+            @if (showMove()) {
+              <button
+                type="button"
+                [id]="'btn-move-up-' + rowId(i)"
+                (click)="moveUp.emit(i)"
+                [disabled]="!canMoveUp(i)"
+                title="Mover para cima"
+              >
+                <span aria-hidden="true">↑</span>
+                <span class="sr-only">Mover para cima</span>
+              </button>
+              <button
+                type="button"
+                [id]="'btn-move-down-' + rowId(i)"
+                (click)="moveDown.emit(i)"
+                [disabled]="!canMoveDown(i)"
+                title="Mover para baixo"
+              >
+                <span aria-hidden="true">↓</span>
+                <span class="sr-only">Mover para baixo</span>
+              </button>
+            }
+            <button
+              type="button"
+              [id]="'btn-edit-' + rowId(i)"
+              (click)="edit.emit(i)"
+              class="items-table-edit"
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              [id]="'btn-remove-' + rowId(i)"
+              (click)="remove.emit(i)"
+              [disabled]="!canRemove()"
+              class="items-table-remove"
+            >
+              Excluir
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="items-table-add">
+    <button
+      type="button"
+      [id]="'btn-add-' + idPrefix()"
+      (click)="add.emit()"
+      [disabled]="!canAdd()"
+    >
+      + {{ addLabel() }}
+    </button>
+    @if (!canAdd() && addDisabledHint()) {
+      <p>{{ addDisabledHint() }}</p>
+    }
+  </div>
+</div>

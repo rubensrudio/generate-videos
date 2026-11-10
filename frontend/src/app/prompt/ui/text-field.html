@@ -1,0 +1,40 @@
+<label [for]="fieldId()">
+  {{ label() }}
+  @if (required()) {
+    <span aria-hidden="true"> *</span><span class="sr-only">obrigatório</span>
+  }
+</label>
+
+@if (multiline()) {
+  <textarea
+    [id]="fieldId()"
+    [formControl]="control()"
+    [attr.maxlength]="maxLength()"
+    [attr.aria-required]="required()"
+    [attr.aria-invalid]="control().invalid"
+    [attr.aria-describedby]="describedBy()"
+  ></textarea>
+} @else {
+  <input
+    type="text"
+    [id]="fieldId()"
+    [formControl]="control()"
+    [attr.inputmode]="inputMode()"
+    [attr.maxlength]="maxLength()"
+    [attr.aria-required]="required()"
+    [attr.aria-invalid]="control().invalid"
+    [attr.aria-describedby]="describedBy()"
+  />
+}
+
+@if (hint()) {
+  <p class="field-hint">{{ hint() }}</p>
+}
+
+<span [id]="countId()">{{ currentLength() }}/{{ maxLength() }}</span>
+
+<p [id]="errorId()" class="field-error" aria-live="polite">
+  @if (errorMessage(); as message) {
+    <span class="field-error-text">{{ message }}</span>
+  }
+</p>

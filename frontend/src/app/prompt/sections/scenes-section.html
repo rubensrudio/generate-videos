@@ -1,0 +1,96 @@
+<div class="scenes-section">
+  <app-items-table
+    idPrefix="scene"
+    addLabel="Adicionar cena"
+    [rows]="rows()"
+    [canAdd]="canAdd()"
+    [canRemove]="canRemove()"
+    addDisabledHint="Limite de 30 cenas atingido"
+    emptyHint="Nenhuma cena ainda."
+    (add)="onAdd()"
+    (edit)="onEdit($event)"
+    (remove)="onRemove($event)"
+    (moveUp)="onMoveUp($event)"
+    (moveDown)="onMoveDown($event)"
+  />
+
+  <div role="status" class="timeline-warnings">
+    <p id="scenes-total">{{ totalSummary() }}</p>
+    @if (musicWarning(); as warning) {
+      <p>{{ warning }}</p>
+    }
+  </div>
+</div>
+
+<app-drawer [open]="editingIndex() !== null" [title]="drawerTitle()" (close)="onCloseDrawer()">
+  @if (editingScene(); as scene) {
+    <div [formGroup]="scene">
+      <div class="field-row">
+        <app-select-field
+          [control]="scene.controls.type"
+          [fieldId]="fieldId(editingIndex()!, 'type')"
+          label="Tipo de cena"
+          [options]="sceneTypeOptions"
+        />
+
+        <app-text-field
+          [control]="scene.controls.durationFrames"
+          [fieldId]="fieldId(editingIndex()!, 'durationFrames')"
+          label="Duração (frames)"
+          [required]="true"
+          [maxLength]="shortTextMax"
+          inputMode="numeric"
+          [hint]="durationHint(editingIndex()!)"
+        />
+      </div>
+
+      @if (editingIndex()! > 0) {
+        <div class="checkbox-field">
+          <input
+            type="checkbox"
+            [id]="fieldId(editingIndex()!, 'subScene')"
+            [formControl]="scene.controls.subScene"
+          />
+          <label [for]="fieldId(editingIndex()!, 'subScene')"
+            >Sub-cena da anterior (numera como 6b, 6c…)</label
+          >
+        </div>
+      }
+
+      <app-text-field
+        [control]="scene.controls.title"
+        [fieldId]="fieldId(editingIndex()!, 'title')"
+        label="Título"
+        [required]="true"
+        [maxLength]="shortTextMax"
+      />
+
+      <app-text-field
+        [control]="scene.controls.narration"
+        [fieldId]="fieldId(editingIndex()!, 'narration')"
+        label="Narração"
+        [required]="true"
+        [multiline]="true"
+        [maxLength]="longTextMax"
+      />
+
+      <app-text-field
+        [control]="scene.controls.content"
+        [fieldId]="fieldId(editingIndex()!, 'content')"
+        label="Conteúdo"
+        [required]="true"
+        [multiline]="true"
+        [maxLength]="longTextMax"
+      />
+
+      <app-text-field
+        [control]="scene.controls.animation"
+        [fieldId]="fieldId(editingIndex()!, 'animation')"
+        label="Animação"
+        [multiline]="true"
+        [maxLength]="longTextMax"
+        [hint]="animationHint(scene)"
+      />
+    </div>
+  }
+</app-drawer>

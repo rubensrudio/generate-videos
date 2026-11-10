@@ -1,0 +1,116 @@
+<header class="wizard-header">
+  <h1 id="form-title">{{ formTitle() }}</h1>
+  <button type="button" id="btn-discard-draft" (click)="onDiscardDraft()">
+    Descartar rascunho
+  </button>
+</header>
+
+<p id="required-legend">* Obrigatório</p>
+
+@if (validationBanner()) {
+  <p id="validation-banner" role="alert">{{ validationBanner() }}</p>
+}
+
+@if (saveErrorBanner()) {
+  <p id="save-error-banner" role="alert">{{ saveErrorBanner() }}</p>
+}
+
+@if (saveToast()) {
+  <p id="save-toast" role="status">{{ saveToast() }}</p>
+}
+
+<app-video-job-panel />
+
+<nav class="wizard-tabs" aria-label="Seções do formulário">
+  @for (tab of tabs; track tab.id; let i = $index) {
+    <button
+      type="button"
+      class="wizard-tab"
+      [id]="'tab-' + tab.id"
+      [class.wizard-tab--active]="isTabActive(i)"
+      [class.wizard-tab--complete]="isTabComplete(i)"
+      [attr.aria-current]="isTabActive(i) ? 'step' : null"
+      [disabled]="!isTabReachable(i)"
+      (click)="goToTab(i)"
+    >
+      <span class="wizard-tab-index" aria-hidden="true">{{ i + 1 }}</span>
+      {{ tab.label }}
+    </button>
+  }
+</nav>
+
+<form [formGroup]="form()">
+  <div class="wizard-panel" [hidden]="activeTabIndex() !== 0">
+    <app-general-sections [form]="form()" />
+  </div>
+
+  <div class="wizard-panel" [hidden]="activeTabIndex() !== 1">
+    <app-scenes-section [scenes]="form().controls.scenes" />
+  </div>
+
+  <div class="wizard-panel" [hidden]="activeTabIndex() !== 2">
+    <app-design-system-section
+      [colors]="form().controls.colors"
+      [extraPrinciples]="form().controls.extraPrinciples"
+    />
+  </div>
+
+  @if (activeTabIndex() === 3) {
+    <div class="wizard-panel wizard-review">
+      <h2>Revisão</h2>
+      <p class="field-hint">
+        Confira o PROMPT.md que será salvo. Volte a uma aba para ajustar algo.
+      </p>
+
+      <dl class="review-summary">
+        <div>
+          <dt>Produto</dt>
+          <dd>{{ form().controls.brand.controls.productName.value || '—' }}</dd>
+        </div>
+        <div>
+          <dt>Cenas</dt>
+          <dd>{{ form().controls.scenes.length }}</dd>
+        </div>
+      </dl>
+
+      <pre
+        id="markdown-preview"
+        class="markdown-preview"
+        tabindex="0"
+        aria-label="Prévia do PROMPT.md"
+        >{{ preview() }}</pre>
+    </div>
+  }
+
+  <div class="form-actions">
+    <button
+      type="button"
+      id="btn-wizard-back"
+      (click)="onBack()"
+      [disabled]="activeTabIndex() === 0"
+    >
+      Voltar
+    </button>
+
+    @if (activeTabIndex() < tabs.length - 1) {
+      <button type="button" id="btn-wizard-advance" (click)="onAdvance()">Avançar</button>
+    } @else {
+      <button
+        type="button"
+        id="btn-save"
+        (click)="onSave()"
+        [disabled]="saving() || video.isRunning()"
+        aria-describedby="save-hint"
+      >
+        {{ saving() ? 'Salvando...' : 'Salvar PROMPT.md' }}
+      </button>
+      <p id="save-hint" class="field-hint">
+        @if (video.isRunning()) {
+          Aguarde o vídeo atual terminar para salvar de novo.
+        } @else {
+          Depois de salvar, o vídeo é gerado automaticamente.
+        }
+      </p>
+    }
+  </div>
+</form>

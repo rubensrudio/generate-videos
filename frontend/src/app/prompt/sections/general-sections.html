@@ -1,0 +1,35 @@
+<fieldset>
+  <legend>Marca</legend>
+
+  <app-text-field
+    [control]="form().controls.brand.controls.productName"
+    fieldId="f-brand-productName"
+    label="Nome do produto"
+    [required]="true"
+    hint="Gera o título e a linha de uso do documento."
+  />
+
+  <app-logo-field [control]="form().controls.brand.controls.logoPath" fieldId="f-brand-logo" />
+</fieldset>
+
+<fieldset>
+  <legend>Vídeo</legend>
+
+  <div class="field-row">
+    <app-select-field
+      [control]="form().controls.video.controls.format"
+      fieldId="f-video-format"
+      label="Formato"
+      [options]="videoFormatOptions"
+    />
+
+    <app-select-field
+      [control]="form().controls.video.controls.monoFont"
+      fieldId="f-video-monoFont"
+      label="Fonte monoespaçada"
+      [options]="monoFontOptions"
+    />
+  </div>
+
+  <p class="field-hint">{{ fixedStackHint }}</p>
+</fieldset>
