@@ -5,12 +5,25 @@ import { Subject, of } from 'rxjs';
 
 import { PromptFormPage } from './prompt-form-page';
 import { DraftStorage, DRAFT_STORAGE_KEY } from './draft-storage';
-import { PromptApi, SavePromptResult } from './prompt-api';
+import { PromptApi, SavePromptResult, VideoJob, VideoJobResult } from './prompt-api';
 import { TEMPLATE_DEFAULTS } from './template-defaults';
 import { PromptFormValue } from './prompt.model';
 
+const RUNNING_JOB: VideoJob = {
+  id: 'job-1',
+  status: 'running',
+  startedAt: '2026-09-25T12:00:00.000Z',
+  finishedAt: null,
+  log: ['Iniciando o Claude Code…'],
+  output: null,
+  error: null,
+};
+
 class PromptApiStub {
   save = vi.fn((_content: string) => of<SavePromptResult>({ ok: true, path: '/r/PROMPT.md' }));
+  getVideo = vi.fn(() => of<VideoJobResult>({ ok: true, job: null }));
+  startVideo = vi.fn(() => of<VideoJobResult>({ ok: true, job: RUNNING_JOB }));
+  cancelVideo = vi.fn(() => of<VideoJobResult>({ ok: true, job: null }));
 }
 
 function configure(promptApi: PromptApiStub = new PromptApiStub()) {
@@ -168,7 +181,7 @@ describe('PromptFormPage', () => {
     expect(document.activeElement?.id).toBe('f-brand-productName');
   });
 
-  it('stub {ok:true,path}: toast de sucesso e valores mantidos', async () => {
+  it('salvou: inicia a geração do vídeo, mostra o painel e o toast', async () => {
     const api = configure();
     const fixture = createFixture();
     await settle(fixture);
@@ -182,12 +195,76 @@ describe('PromptFormPage', () => {
 
     const toast = compiled.querySelector('#save-toast');
     expect(toast?.textContent).toContain(
-      'Requisitos preenchidos com sucesso. PROMPT.md salvo em /r/PROMPT.md',
+      'PROMPT.md salvo em /r/PROMPT.md. Geração do vídeo iniciada.',
+    );
+    expect(api.startVideo).toHaveBeenCalledTimes(1);
+    expect(api.save.mock.invocationCallOrder[0]).toBeLessThan(
+      api.startVideo.mock.invocationCallOrder[0],
+    );
+    expect(compiled.querySelector('#video-job-panel')?.textContent).toContain('Gerando o vídeo');
+    expect((compiled.querySelector('#btn-save') as HTMLButtonElement).disabled).toBe(true);
+    expect(compiled.querySelector('#save-hint')?.textContent).toContain(
+      'Aguarde o vídeo atual terminar',
     );
     expect((compiled.querySelector('#f-brand-productName') as HTMLInputElement).value).toBe(
       'Sendkit',
     );
     expect(api.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('falha ao salvar: não inicia o vídeo', async () => {
+    const api = new PromptApiStub();
+    api.save = vi.fn(() => of<SavePromptResult>({ ok: false, kind: 'falha', message: 'Falhou' }));
+    configure(api);
+    const fixture = createFixture();
+    await settle(fixture);
+
+    await goToReview(fixture);
+    (
+      (fixture.nativeElement as HTMLElement).querySelector('#btn-save') as HTMLButtonElement
+    ).click();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    expect(api.startVideo).not.toHaveBeenCalled();
+  });
+
+  it('salvou mas o vídeo não iniciou: faixa de erro explica e o botão volta a ficar ativo', async () => {
+    const api = new PromptApiStub();
+    api.startVideo = vi.fn(() =>
+      of<VideoJobResult>({ ok: false, message: 'Já existe um vídeo sendo gerado' }),
+    );
+    configure(api);
+    const fixture = createFixture();
+    await settle(fixture);
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    await goToReview(fixture);
+    (compiled.querySelector('#btn-save') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await settle(fixture);
+
+    expect(compiled.querySelector('#save-error-banner')?.textContent).toContain(
+      'PROMPT.md salvo em /r/PROMPT.md, mas o vídeo não foi iniciado: Já existe um vídeo sendo gerado',
+    );
+    expect(compiled.querySelector('#save-toast')).toBeNull();
+    expect((compiled.querySelector('#btn-save') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('ao abrir com um vídeo em andamento: mostra o painel e bloqueia Salvar', async () => {
+    const api = new PromptApiStub();
+    api.getVideo = vi.fn(() => of<VideoJobResult>({ ok: true, job: RUNNING_JOB }));
+    configure(api);
+    const fixture = createFixture();
+    await settle(fixture);
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#video-job-panel')).toBeTruthy();
+    await goToReview(fixture);
+    const saveBtn = compiled.querySelector('#btn-save') as HTMLButtonElement;
+    expect(saveBtn.disabled).toBe(true);
+    saveBtn.click();
+    expect(api.save).not.toHaveBeenCalled();
   });
 
   it('stub {ok:false,kind:permissao}: faixa de erro persistente com a mensagem e valores mantidos', async () => {

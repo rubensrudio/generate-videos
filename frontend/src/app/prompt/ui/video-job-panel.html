@@ -1,0 +1,73 @@
+@if (job(); as job) {
+  <section
+    id="video-job-panel"
+    class="video-job"
+    [class.video-job--running]="job.status === 'running'"
+    [class.video-job--succeeded]="job.status === 'succeeded'"
+    [class.video-job--failed]="job.status === 'failed' || job.status === 'canceled'"
+    aria-labelledby="video-job-title"
+  >
+    <header class="video-job-header">
+      <h2 id="video-job-title">
+        @switch (job.status) {
+          @case ('running') {
+            <span class="video-job-spinner" aria-hidden="true"></span>
+            Gerando o vídeo…
+          }
+          @case ('succeeded') {
+            Vídeo pronto
+          }
+          @case ('canceled') {
+            Geração cancelada
+          }
+          @default {
+            Não foi possível gerar o vídeo
+          }
+        }
+      </h2>
+      <span class="video-job-elapsed">{{ elapsed() }}</span>
+    </header>
+
+    @if (job.status === 'running') {
+      <p class="field-hint">
+        O Claude Code está gerando a narração, escrevendo as cenas e renderizando. Isso leva alguns
+        minutos; pode deixar esta página aberta.
+      </p>
+      <ol id="video-job-log" class="video-job-log" aria-live="polite">
+        @for (line of recentLog(); track $index) {
+          <li>{{ line }}</li>
+        }
+      </ol>
+      <button type="button" id="btn-cancel-video" (click)="onCancel()">Cancelar</button>
+    }
+
+    @if (job.status === 'succeeded') {
+      <video id="video-job-player" class="video-job-player" controls [src]="videoUrl()"></video>
+      <a
+        id="video-job-download"
+        class="video-job-download"
+        [href]="videoUrl()"
+        [download]="fileName()"
+      >
+        Baixar vídeo
+      </a>
+      <p class="field-hint">
+        Salvo em <code>{{ job.output }}</code>
+      </p>
+    }
+
+    @if (job.status === 'failed' || job.status === 'canceled') {
+      <p id="video-job-error" class="video-job-error" role="alert">{{ job.error }}</p>
+      @if (recentLog().length > 0) {
+        <details>
+          <summary>Últimas ações</summary>
+          <ol class="video-job-log">
+            @for (line of recentLog(); track $index) {
+              <li>{{ line }}</li>
+            }
+          </ol>
+        </details>
+      }
+    }
+  </section>
+}

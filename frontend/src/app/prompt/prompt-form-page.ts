@@ -15,7 +15,15 @@
  * aparece na última aba (Revisão), junto da prévia do markdown gerado.
  */
 
-import { Component, DestroyRef, Injector, afterNextRender, inject, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  Injector,
+  afterNextRender,
+  inject,
+  signal,
+  effect,
+} from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
 import { Subscription } from 'rxjs';
@@ -23,6 +31,8 @@ import { Subscription } from 'rxjs';
 import { APP_NAME } from '../app-info';
 import { DraftStorage } from './draft-storage';
 import { PromptApi } from './prompt-api';
+import { VideoGeneration } from './video-generation';
+import { VideoJobPanel } from './ui/video-job-panel';
 import { PromptForm, buildPromptForm, countInvalidLeaves } from './prompt-form.factory';
 import { generatePromptMarkdown } from './prompt-markdown';
 import { TEMPLATE_DEFAULTS } from './template-defaults';
@@ -31,6 +41,8 @@ import { errorBanner } from './validation-messages';
 import { DesignSystemSection } from './sections/design-system-section';
 import { GeneralSections } from './sections/general-sections';
 import { ScenesSection } from './sections/scenes-section';
+
+const TOAST_DURATION_MS = 6000;
 
 const DISCARD_CONFIRM_MESSAGE = 'Descartar o rascunho e voltar aos valores do template?';
 
@@ -60,12 +72,19 @@ const LAST_STEP_INDEX = TABS.length - 1;
 @Component({
   selector: 'app-prompt-form-page',
   standalone: true,
-  imports: [ReactiveFormsModule, GeneralSections, ScenesSection, DesignSystemSection],
+  imports: [
+    ReactiveFormsModule,
+    GeneralSections,
+    ScenesSection,
+    DesignSystemSection,
+    VideoJobPanel,
+  ],
   templateUrl: './prompt-form-page.html',
 })
 export class PromptFormPage {
   private readonly draftStorage = inject(DraftStorage);
   private readonly promptApi = inject(PromptApi);
+  protected readonly video = inject(VideoGeneration);
   private readonly titleService = inject(Title);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
@@ -79,13 +98,36 @@ export class PromptFormPage {
   protected readonly validationBanner = signal<string | null>(null);
   protected readonly saveErrorBanner = signal<string | null>(null);
   protected readonly saveToast = signal<string | null>(null);
-  protected readonly formTitle = signal(this.buildFormTitle(this.form().controls.brand.controls.productName.value));
+  protected readonly formTitle = signal(
+    this.buildFormTitle(this.form().controls.brand.controls.productName.value),
+  );
 
   private subscriptions = new Subscription();
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.wireForm();
-    this.destroyRef.onDestroy(() => this.subscriptions.unsubscribe());
+    this.destroyRef.onDestroy(() => {
+      this.subscriptions.unsubscribe();
+      if (this.toastTimer !== null) {
+        clearTimeout(this.toastTimer);
+      }
+    });
+    // Mostra um vídeo que já esteja sendo gerado (ex.: página recarregada).
+    this.video.refresh();
+    // O toast é fixo sobre o conteúdo; some sozinho depois de alguns segundos.
+    effect(() => {
+      if (this.saveToast() === null) {
+        return;
+      }
+      if (this.toastTimer !== null) {
+        clearTimeout(this.toastTimer);
+      }
+      this.toastTimer = setTimeout(() => {
+        this.toastTimer = null;
+        this.saveToast.set(null);
+      }, TOAST_DURATION_MS);
+    });
   }
 
   /** Carrega o rascunho (se houver) ou os defaults do template (CT-9). */
@@ -201,7 +243,7 @@ export class PromptFormPage {
   }
 
   protected onSave(): void {
-    if (this.saving()) {
+    if (this.saving() || this.video.isRunning()) {
       return;
     }
 
@@ -222,15 +264,37 @@ export class PromptFormPage {
     const markdown = generatePromptMarkdown(form.getRawValue());
 
     this.promptApi.save(markdown).subscribe((result) => {
-      if (result.ok) {
-        this.saveErrorBanner.set(null);
-        this.saveToast.set(`Requisitos preenchidos com sucesso. PROMPT.md salvo em ${result.path}`);
-      } else {
+      if (!result.ok) {
         this.saveToast.set(null);
         this.saveErrorBanner.set(result.message);
+        this.saving.set(false);
+        return;
       }
-      this.saving.set(false);
+
+      this.saveErrorBanner.set(null);
+      const saved = `PROMPT.md salvo em ${result.path}`;
+      // Salvou: dispara a geração do vídeo a partir do novo prompt.
+      this.video.start().subscribe((startError) => {
+        if (startError === null) {
+          this.saveToast.set(`${saved}. Geração do vídeo iniciada.`);
+          // O painel fica no topo; o botão Salvar, no fim da página.
+          afterNextRender(() => this.scrollToVideoPanel(), { injector: this.injector });
+        } else {
+          this.saveToast.set(null);
+          this.saveErrorBanner.set(`${saved}, mas o vídeo não foi iniciado: ${startError}`);
+        }
+        this.saving.set(false);
+      });
     });
+  }
+
+  private scrollToVideoPanel(): void {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    document
+      .getElementById('video-job-panel')
+      ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   }
 
   private focusFirstInvalidField(): void {

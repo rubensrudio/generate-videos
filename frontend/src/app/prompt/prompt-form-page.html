@@ -1,6 +1,8 @@
 <header class="wizard-header">
   <h1 id="form-title">{{ formTitle() }}</h1>
-  <button type="button" id="btn-discard-draft" (click)="onDiscardDraft()">Descartar rascunho</button>
+  <button type="button" id="btn-discard-draft" (click)="onDiscardDraft()">
+    Descartar rascunho
+  </button>
 </header>
 
 <p id="required-legend">* Obrigatório</p>
@@ -16,6 +18,8 @@
 @if (saveToast()) {
   <p id="save-toast" role="status">{{ saveToast() }}</p>
 }
+
+<app-video-job-panel />
 
 <nav class="wizard-tabs" aria-label="Seções do formulário">
   @for (tab of tabs; track tab.id; let i = $index) {
@@ -54,7 +58,9 @@
   @if (activeTabIndex() === 3) {
     <div class="wizard-panel wizard-review">
       <h2>Revisão</h2>
-      <p class="field-hint">Confira o PROMPT.md que será salvo. Volte a uma aba para ajustar algo.</p>
+      <p class="field-hint">
+        Confira o PROMPT.md que será salvo. Volte a uma aba para ajustar algo.
+      </p>
 
       <dl class="review-summary">
         <div>
@@ -67,23 +73,44 @@
         </div>
       </dl>
 
-      <pre id="markdown-preview" class="markdown-preview" tabindex="0" aria-label="Prévia do PROMPT.md">{{ preview() }}</pre>
+      <pre
+        id="markdown-preview"
+        class="markdown-preview"
+        tabindex="0"
+        aria-label="Prévia do PROMPT.md"
+        >{{ preview() }}</pre>
     </div>
   }
 
   <div class="form-actions">
-    <button type="button" id="btn-wizard-back" (click)="onBack()" [disabled]="activeTabIndex() === 0">
+    <button
+      type="button"
+      id="btn-wizard-back"
+      (click)="onBack()"
+      [disabled]="activeTabIndex() === 0"
+    >
       Voltar
     </button>
 
     @if (activeTabIndex() < tabs.length - 1) {
-      <button type="button" id="btn-wizard-advance" (click)="onAdvance()">
-        Avançar
-      </button>
+      <button type="button" id="btn-wizard-advance" (click)="onAdvance()">Avançar</button>
     } @else {
-      <button type="button" id="btn-save" (click)="onSave()" [disabled]="saving()">
+      <button
+        type="button"
+        id="btn-save"
+        (click)="onSave()"
+        [disabled]="saving() || video.isRunning()"
+        aria-describedby="save-hint"
+      >
         {{ saving() ? 'Salvando...' : 'Salvar PROMPT.md' }}
       </button>
+      <p id="save-hint" class="field-hint">
+        @if (video.isRunning()) {
+          Aguarde o vídeo atual terminar para salvar de novo.
+        } @else {
+          Depois de salvar, o vídeo é gerado automaticamente.
+        }
+      </p>
     }
   </div>
 </form>
