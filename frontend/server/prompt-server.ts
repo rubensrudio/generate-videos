@@ -1,19 +1,25 @@
 import { createServer } from 'node:http';
-import type {
-  IncomingHttpHeaders,
-  IncomingMessage,
-  ServerResponse,
-  Server,
-} from 'node:http';
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse, Server } from 'node:http';
+import { createReadStream } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { writePromptFile } from './prompt-writer.ts';
+import {
+  LOGO_CONTENT_TYPES,
+  MAX_LOGO_BYTES,
+  detectLogoType,
+  readLogoFile,
+  writeLogoFile,
+} from './logo-store.ts';
+import { VideoJobRunner } from './video-job.ts';
 
 export interface PromptServerOptions {
   projectRoot: string;
   staticDir: string;
   port: number;
   log?: (line: string) => void;
+  /** Gerador de vídeo (Claude Code headless); criado com `projectRoot` se omitido. */
+  videoRunner?: VideoJobRunner;
 }
 
 // Limite de 1 MiB para o corpo do POST /api/prompt (PRE em plan seção 8.1).
@@ -40,10 +46,7 @@ const ALLOWED_ORIGIN_PORTS = [4200];
  * localhost:<port>, e o Origin (quando presente) estiver na lista permitida
  * (mesma porta do servidor, ou a porta 4200 do `ng serve` com proxy).
  */
-export function isAllowedRequest(
-  headers: IncomingHttpHeaders,
-  port: number,
-): boolean {
+export function isAllowedRequest(headers: IncomingHttpHeaders, port: number): boolean {
   const host = headers.host;
   const allowedHosts = new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
   if (typeof host !== 'string' || !allowedHosts.has(host)) {
@@ -73,11 +76,7 @@ interface ErrorBody {
   message: string;
 }
 
-function sendJson(
-  res: ServerResponse,
-  status: number,
-  body: Record<string, unknown>,
-): void {
+function sendJson(res: ServerResponse, status: number, body: Record<string, unknown>): void {
   const payload = JSON.stringify(body);
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -86,12 +85,7 @@ function sendJson(
   res.end(payload);
 }
 
-function sendError(
-  res: ServerResponse,
-  status: number,
-  code: string,
-  message: string,
-): ErrorBody {
+function sendError(res: ServerResponse, status: number, code: string, message: string): ErrorBody {
   const body: ErrorBody = { ok: false, code, message };
   sendJson(res, status, { ok: body.ok, code: body.code, message: body.message });
   return body;
@@ -123,7 +117,8 @@ function contentTypeFor(filePath: string): string {
  */
 function readBody(
   req: IncomingMessage,
-): Promise<{ tooLarge: true } | { tooLarge: false; body: string }> {
+  maxBytes: number = MAX_BODY_BYTES,
+): Promise<{ tooLarge: true } | { tooLarge: false; body: Buffer }> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;
@@ -134,7 +129,7 @@ function readBody(
         return;
       }
       total += chunk.length;
-      if (total > MAX_BODY_BYTES) {
+      if (total > maxBytes) {
         settled = true;
         req.removeListener('data', onData);
         req.removeListener('end', onEnd);
@@ -150,7 +145,7 @@ function readBody(
         return;
       }
       settled = true;
-      resolve({ tooLarge: false, body: Buffer.concat(chunks).toString('utf8') });
+      resolve({ tooLarge: false, body: Buffer.concat(chunks) });
     };
 
     const onError = (err: Error) => {
@@ -262,7 +257,7 @@ async function handlePromptPost(
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(readResult.body);
+    parsed = JSON.parse(readResult.body.toString('utf8'));
   } catch {
     const err = sendError(
       res,
@@ -299,17 +294,28 @@ async function handlePromptPost(
 
   if (writeResult.code === 'PERMISSAO_NEGADA') {
     sendError(res, 500, 'PERMISSAO_NEGADA', 'Sem permissão para gravar o PROMPT.md');
-    log(logLine(500, 'PERMISSAO_NEGADA', Buffer.byteLength(content, 'utf8'), startedAt, writeResult.reason));
+    log(
+      logLine(
+        500,
+        'PERMISSAO_NEGADA',
+        Buffer.byteLength(content, 'utf8'),
+        startedAt,
+        writeResult.reason,
+      ),
+    );
     return;
   }
 
-  sendError(
-    res,
-    500,
-    'FALHA_GRAVACAO',
-    `Falha ao gravar o PROMPT.md: ${writeResult.reason}`,
+  sendError(res, 500, 'FALHA_GRAVACAO', `Falha ao gravar o PROMPT.md: ${writeResult.reason}`);
+  log(
+    logLine(
+      500,
+      'FALHA_GRAVACAO',
+      Buffer.byteLength(content, 'utf8'),
+      startedAt,
+      writeResult.reason,
+    ),
   );
-  log(logLine(500, 'FALHA_GRAVACAO', Buffer.byteLength(content, 'utf8'), startedAt, writeResult.reason));
 }
 
 /**
@@ -329,13 +335,197 @@ function logLine(
   return reason === undefined ? base : `${base} · reason=${reason}`;
 }
 
+/**
+ * `POST /api/logo`: recebe a imagem crua no corpo (até 2 MiB), confere o tipo
+ * pela assinatura dos bytes e grava em `public/images/logo.<ext>` do projeto.
+ * `GET /api/logo`: devolve o logo atual, para a prévia no formulário.
+ */
+async function handleLogoRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  options: PromptServerOptions,
+  log: (line: string) => void,
+): Promise<void> {
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    const logo = await readLogoFile(options.projectRoot);
+    if (logo === null) {
+      sendError(res, 404, 'LOGO_INEXISTENTE', 'Nenhum logo enviado');
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': logo.contentType,
+      'Content-Length': logo.data.length,
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      // SVG aberto direto no navegador não executa script.
+      'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+    });
+    res.end(req.method === 'HEAD' ? undefined : logo.data);
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'GET, POST');
+    sendError(res, 405, 'METODO_NAO_PERMITIDO', 'Método não permitido');
+    return;
+  }
+
+  const startedAt = Date.now();
+  const contentType = (req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase();
+  if (!Object.values(LOGO_CONTENT_TYPES).includes(contentType)) {
+    const err = sendError(
+      res,
+      415,
+      'TIPO_IMAGEM_INVALIDO',
+      'Envie uma imagem PNG, JPG, WEBP ou SVG',
+    );
+    log(logLine(415, err.code, 0, startedAt));
+    return;
+  }
+
+  let readResult: Awaited<ReturnType<typeof readBody>>;
+  try {
+    readResult = await readBody(req, MAX_LOGO_BYTES);
+  } catch {
+    if (!req.socket?.destroyed) {
+      sendError(res, 400, 'PAYLOAD_INVALIDO', 'Imagem ausente ou inválida');
+    }
+    log(logLine(400, 'PAYLOAD_INVALIDO', 0, startedAt));
+    return;
+  }
+
+  if (readResult.tooLarge) {
+    const err = sendError(res, 413, 'PAYLOAD_GRANDE', 'Imagem acima de 2 MiB');
+    log(logLine(413, err.code, 0, startedAt));
+    drainAndClose(req, log);
+    return;
+  }
+
+  const ext = detectLogoType(readResult.body);
+  if (ext === null) {
+    const err = sendError(
+      res,
+      415,
+      'TIPO_IMAGEM_INVALIDO',
+      'Envie uma imagem PNG, JPG, WEBP ou SVG',
+    );
+    log(logLine(415, err.code, readResult.body.length, startedAt));
+    return;
+  }
+
+  const result = await writeLogoFile(options.projectRoot, readResult.body, ext);
+  if (result.ok) {
+    sendJson(res, 200, { ok: true, path: result.path });
+    log(logLine(200, 'LOGO_OK', readResult.body.length, startedAt));
+    return;
+  }
+
+  const message =
+    result.code === 'PERMISSAO_NEGADA'
+      ? 'Sem permissão para gravar o logo'
+      : `Falha ao gravar o logo: ${result.reason}`;
+  sendError(res, 500, result.code, message);
+  log(logLine(500, result.code, readResult.body.length, startedAt, result.reason));
+}
+
+/**
+ * Geração do vídeo (Claude Code headless):
+ * - `POST /api/video`: inicia (409 se já houver um em andamento).
+ * - `GET /api/video`: estado do job atual ou do último.
+ * - `POST /api/video/cancel`: cancela o job em andamento.
+ * - `GET /api/video/file`: MP4 do último job concluído.
+ */
+async function handleVideoRoute(
+  req: IncomingMessage,
+  res: ServerResponse,
+  pathname: string,
+  runner: VideoJobRunner,
+  log: (line: string) => void,
+): Promise<void> {
+  const allow = (methods: string): void => {
+    res.setHeader('Allow', methods);
+    sendError(res, 405, 'METODO_NAO_PERMITIDO', 'Método não permitido');
+  };
+
+  if (pathname === '/api/video') {
+    if (req.method === 'GET') {
+      sendJson(res, 200, { ok: true, job: runner.current() });
+      return;
+    }
+    if (req.method !== 'POST') {
+      allow('GET, POST');
+      return;
+    }
+    const job = runner.start();
+    if (job === null) {
+      sendError(res, 409, 'VIDEO_EM_ANDAMENTO', 'Já existe um vídeo sendo gerado');
+      return;
+    }
+    log(`${new Date().toISOString()} · 202 · VIDEO_INICIADO · ${job.id}`);
+    sendJson(res, 202, { ok: true, job });
+    return;
+  }
+
+  if (pathname === '/api/video/cancel') {
+    if (req.method !== 'POST') {
+      allow('POST');
+      return;
+    }
+    if (!runner.cancel()) {
+      sendError(res, 409, 'SEM_VIDEO_EM_ANDAMENTO', 'Nenhum vídeo sendo gerado');
+      return;
+    }
+    log(`${new Date().toISOString()} · 200 · VIDEO_CANCELADO`);
+    sendJson(res, 200, { ok: true, job: runner.current() });
+    return;
+  }
+
+  if (pathname === '/api/video/file') {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      allow('GET');
+      return;
+    }
+    const file = runner.outputFile();
+    const info = file === null ? null : await stat(file).catch(() => null);
+    if (file === null || info === null || !info.isFile()) {
+      sendError(res, 404, 'VIDEO_INEXISTENTE', 'Nenhum vídeo gerado');
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'video/mp4',
+      'Content-Length': info.size,
+      'Content-Disposition': `inline; filename="${path.basename(file)}"`,
+      'Cache-Control': 'no-store',
+    });
+    if (req.method === 'HEAD') {
+      res.end();
+      return;
+    }
+    createReadStream(file).pipe(res);
+    return;
+  }
+
+  sendError(res, 404, 'ROTA_INEXISTENTE', 'Rota inexistente');
+}
+
 async function handleApiRoute(
   req: IncomingMessage,
   res: ServerResponse,
   pathname: string,
   options: PromptServerOptions,
+  videoRunner: VideoJobRunner,
   log: (line: string) => void,
 ): Promise<void> {
+  if (pathname === '/api/video' || pathname.startsWith('/api/video/')) {
+    await handleVideoRoute(req, res, pathname, videoRunner, log);
+    return;
+  }
+
+  if (pathname === '/api/logo') {
+    await handleLogoRoute(req, res, options, log);
+    return;
+  }
+
   if (pathname !== '/api/prompt') {
     sendError(res, 404, 'ROTA_INEXISTENTE', 'Rota inexistente');
     return;
@@ -350,10 +540,7 @@ async function handleApiRoute(
   await handlePromptPost(req, res, options, log);
 }
 
-async function serveStaticFile(
-  res: ServerResponse,
-  filePath: string,
-): Promise<void> {
+async function serveStaticFile(res: ServerResponse, filePath: string): Promise<void> {
   const data = await readFile(filePath);
   res.writeHead(200, { 'Content-Type': contentTypeFor(filePath) });
   res.end(data);
@@ -380,8 +567,7 @@ async function handleStaticRoute(
 
   const resolved = path.resolve(options.staticDir, '.' + pathname);
   const withinStaticDir =
-    resolved === options.staticDir ||
-    resolved.startsWith(options.staticDir + path.sep);
+    resolved === options.staticDir || resolved.startsWith(options.staticDir + path.sep);
 
   if (!withinStaticDir) {
     res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -406,6 +592,8 @@ async function handleStaticRoute(
 
 export function createPromptServer(options: PromptServerOptions): Server {
   const log = options.log ?? (() => {});
+  const videoRunner =
+    options.videoRunner ?? new VideoJobRunner({ projectRoot: options.projectRoot });
 
   return createServer((req, res) => {
     const rawUrl = req.url ?? '/';
@@ -419,7 +607,7 @@ export function createPromptServer(options: PromptServerOptions): Server {
         sendError(res, 403, 'ORIGEM_NAO_PERMITIDA', 'Origem não permitida');
         return;
       }
-      handleApiRoute(req, res, pathname, options, log).catch(() => {
+      handleApiRoute(req, res, pathname, options, videoRunner, log).catch(() => {
         if (!res.headersSent) {
           sendError(res, 500, 'FALHA_GRAVACAO', 'Falha ao gravar o PROMPT.md: erro inesperado');
         }

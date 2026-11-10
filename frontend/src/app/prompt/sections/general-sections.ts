@@ -1,27 +1,32 @@
 /**
- * Seções gerais do formulário (CT-15): Identificação, Tech Stack,
- * Configurações do Vídeo, Narração e Música de Fundo, nessa ordem.
+ * Seções gerais do formulário (CT-15): Marca e Vídeo.
  *
- * Recebe o `PromptForm` (CT-8) já construído e apenas renderiza os campos
- * correspondentes via `app-text-field` (CT-14). Não faz wiring nem lógica de
- * submissão — isso é responsabilidade da página que a compõe.
+ * Só mostra o que muda entre projetos. Stack, fps, voz (ID, modelo,
+ * parâmetros e versão do áudio) e música são fixos (`prompt-constants.ts`);
+ * os de vídeo aparecem como dica, para o usuário saber o que vai no
+ * documento sem precisar preencher.
  */
 
 import { Component, input } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 
 import { PromptForm } from '../prompt-form.factory';
-import { LONG_TEXT_MAX } from '../prompt.model';
+import { FPS, MONO_FONT_OPTIONS, MUSIC, VIDEO_FORMAT_OPTIONS } from '../prompt-constants';
+import { LogoField } from '../ui/logo-field';
+import { SelectField } from '../ui/select-field';
 import { TextField } from '../ui/text-field';
 
 @Component({
   selector: 'app-general-sections',
   standalone: true,
-  imports: [ReactiveFormsModule, TextField],
+  imports: [ReactiveFormsModule, TextField, SelectField, LogoField],
   templateUrl: './general-sections.html',
 })
 export class GeneralSections {
   readonly form = input.required<PromptForm>();
 
-  protected readonly longTextMax = LONG_TEXT_MAX;
+  protected readonly videoFormatOptions = VIDEO_FORMAT_OPTIONS;
+  protected readonly monoFontOptions = MONO_FONT_OPTIONS;
+
+  protected readonly fixedStackHint = `Fixo em todos os vídeos: Remotion 4.x, Inter + Instrument Serif, ${FPS} fps, narração ElevenLabs e música de fundo em ${MUSIC.file} (volume ${MUSIC.volume}).`;
 }

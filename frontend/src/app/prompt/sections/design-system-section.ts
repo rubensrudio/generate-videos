@@ -1,53 +1,41 @@
 /**
- * Seção "Sistema Visual de Design" do formulário do PROMPT.md (CT-15).
+ * Seção "Sistema Visual" do formulário do PROMPT.md (CT-15).
  *
- * Sistema Visual é 100% opcional: nenhum campo desta seção usa `required`.
- * Cada subseção † (Cores, Fundo, Cards, BrowserWindow, Padrões de Animação)
- * mostra a dica "Deixe a subseção vazia para usar o texto do template" —
- * quando a subseção inteira está em branco, o gerador de markdown (TASK-015)
- * usa o texto padrão do template em vez do que está no formulário.
+ * Pede só as 7 cores-base da marca, escolhidas num seletor visual
+ * (`app-color-field`). Os tons claros (`greenLight`,
+ * `greenGlow`, `blueLight`…) são derivados delas, e card, border, purple e os
+ * blobs de fundo são fixos (`prompt-constants.ts`). Fundo, cards,
+ * BrowserWindow e padrões de animação também são fixos e não aparecem aqui.
  *
- * Adicionar/remover uma linha de cor é uma mudança estrutural do `FormArray`:
- * depois de inserir/remover, chamamos `updateValueAndValidity()` no próprio
- * array (os validadores cruzados de unicidade de nome dependem de enxergar
- * todas as linhas atuais) e emitimos `structureChange` para o pai (CT-8/14/16)
- * revalidar o que depender da forma da árvore.
+ * Os princípios de design base são fixos; o usuário pode acrescentar
+ * princípios próprios do projeto, um por linha.
  */
 
-import { Component, input, output } from '@angular/core';
-import { ReactiveFormsModule } from '@angular/forms';
+import { Component, input } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 
 import { TextField } from '../ui/text-field';
-import { PromptForm, buildColorGroup } from '../prompt-form.factory';
-import { LONG_TEXT_MAX } from '../prompt.model';
-
-const SUBSECTION_HINT = 'Deixe a subseção vazia para usar o texto do template';
+import { ColorField } from '../ui/color-field';
+import { ColorsForm } from '../prompt-form.factory';
+import { BASE_PRINCIPLES, BRAND_COLOR_LABELS } from '../prompt-constants';
+import { BRAND_COLOR_TOKENS, BrandColorToken, LONG_TEXT_MAX } from '../prompt.model';
 
 @Component({
   selector: 'app-design-system-section',
   standalone: true,
-  imports: [ReactiveFormsModule, TextField],
+  imports: [ReactiveFormsModule, TextField, ColorField],
   templateUrl: './design-system-section.html',
 })
 export class DesignSystemSection {
-  readonly design = input.required<PromptForm['controls']['design']>();
+  readonly colors = input.required<ColorsForm>();
+  readonly extraPrinciples = input.required<FormControl<string>>();
 
-  readonly structureChange = output<void>();
-
-  protected readonly subsectionHint = SUBSECTION_HINT;
+  protected readonly tokens = BRAND_COLOR_TOKENS;
+  protected readonly labels = BRAND_COLOR_LABELS;
   protected readonly longTextMax = LONG_TEXT_MAX;
+  protected readonly basePrinciples = BASE_PRINCIPLES.map((item) => item.replace(/\*\*/g, ''));
 
-  protected addColor(): void {
-    const colors = this.design().controls.colors;
-    colors.push(buildColorGroup({ name: '', value: '', comment: '' }));
-    colors.updateValueAndValidity();
-    this.structureChange.emit();
-  }
-
-  protected removeColor(index: number): void {
-    const colors = this.design().controls.colors;
-    colors.removeAt(index);
-    colors.updateValueAndValidity();
-    this.structureChange.emit();
+  protected control(token: BrandColorToken): FormControl<string> {
+    return this.colors().controls[token];
   }
 }

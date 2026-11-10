@@ -1,5 +1,6 @@
 <label [for]="fieldId()">
-  {{ label() }}@if (required()) {
+  {{ label() }}
+  @if (required()) {
     <span aria-hidden="true"> *</span><span class="sr-only">obrigatório</span>
   }
 </label>
@@ -33,5 +34,7 @@
 <span [id]="countId()">{{ currentLength() }}/{{ maxLength() }}</span>
 
 <p [id]="errorId()" class="field-error" aria-live="polite">
-  {{ errorMessage() }}
+  @if (errorMessage(); as message) {
+    <span class="field-error-text">{{ message }}</span>
+  }
 </p>

@@ -1,38 +1,42 @@
 /**
  * Gerador puro do markdown do PROMPT.md (CT-4).
  *
- * Função pura: pressupõe `value` válido (não valida nada aqui). Segue o
- * layout descrito no contrato CT-4 linha a linha. Não faz nenhuma chamada de
- * rede nem depende de Angular/DOM.
+ * Função pura: pressupõe `value` válido (não valida nada aqui). Junta três
+ * fontes: o que o usuário preencheu (`PromptFormValue`), os valores fixos de
+ * todos os projetos (`prompt-constants.ts`) e o que é calculado a partir do
+ * preenchido (`prompt-derived.ts`). Não depende de Angular/DOM.
  */
 
-import { isSubsectionEmpty } from './prompt-form.factory';
-import { PromptFormValue, TemplateFallbacks } from './prompt.model';
+import { PromptFormValue } from './prompt.model';
+import { audioFileName, escapeTableCell, framesToSeconds, toLf } from './markdown-utils';
 import {
-  audioFileName,
-  escapeTableCell,
-  formatDecimal,
-  framesToSeconds,
-  normalizeDecimal,
-  normalizeInteger,
-  toLf,
-} from './markdown-utils';
-import { TEMPLATE_FALLBACKS } from './template-defaults';
+  ANIMATION_DEFAULT_LINES,
+  BASE_PRINCIPLES,
+  BROWSER_WINDOW_LINES,
+  CARDS_LINES,
+  FONT_BODY,
+  FONT_HEADING,
+  FPS,
+  MONO_FONT_SPECS,
+  MUSIC,
+  MUSIC_SOURCE_LINE,
+  TECH_STACK_LINES,
+  TTS_LINE,
+  VIDEO_FORMAT_SPECS,
+  VOICE_SETTINGS,
+} from './prompt-constants';
+import {
+  SceneTiming,
+  colorTokens,
+  documentTitle,
+  sceneAnimation,
+  sceneTimeline,
+  totalFrames,
+  usageLine,
+} from './prompt-derived';
 
 function isBlank(value: string): boolean {
   return value.trim() === '';
-}
-
-/** Formata um campo decimal (ex.: stability) para exibição, com fallback ao texto bruto. */
-function decimalOrRaw(raw: string): string {
-  const n = normalizeDecimal(raw);
-  return n === null ? raw : formatDecimal(n);
-}
-
-/** Formata um campo inteiro (ex.: fps) para exibição, com fallback ao texto bruto. */
-function integerOrRaw(raw: string): string {
-  const n = normalizeInteger(raw);
-  return n === null ? raw : String(n);
 }
 
 /** Prefixa a 2ª linha em diante de um texto multilinha com 2 espaços (PRE-08). */
@@ -43,260 +47,211 @@ function indentContinuationLines(text: string): string {
     .join('\n');
 }
 
+/** "`v4-s01.mp3` até `v4-s10.mp3` + `v4-s06b.mp3`" a partir dos ids das cenas. */
+function audioFileRange(prefix: string, timeline: SceneTiming[]): string {
+  const file = (id: string): string => `\`${audioFileName(prefix, id)}\``;
+  const mainIds = timeline.map((t) => t.id).filter((id) => /^\d+$/.test(id));
+  const subIds = timeline.map((t) => t.id).filter((id) => !/^\d+$/.test(id));
+  const main =
+    mainIds.length === 1
+      ? file(mainIds[0])
+      : `${file(mainIds[0])} até ${file(mainIds[mainIds.length - 1])}`;
+  return [main, ...subIds.map(file)].join(' + ');
+}
+
 function buildHeader(value: PromptFormValue): string[] {
-  const lines: string[] = [];
-  lines.push(`# ${value.identity.documentTitle}`);
-  if (!isBlank(value.identity.usageLine)) {
-    lines.push('');
-    const usage = toLf(value.identity.usageLine).replace(/\n/g, ' ');
-    lines.push(`> ${usage}`);
-  }
-  return lines;
+  return [
+    `# ${documentTitle(value.brand.productName)}`,
+    '',
+    `> ${usageLine(value.brand.productName)}`,
+  ];
 }
 
 function buildTechStack(value: PromptFormValue): string[] {
-  const lines: string[] = [];
-  lines.push('## Tech Stack');
-  lines.push('');
-  lines.push(`- **Framework de vídeo**: ${value.techStack.videoFramework}`);
-  lines.push(`- **Fontes**: ${value.techStack.bodyFont} (corpo) e ${value.techStack.headingFont} (títulos)`);
-  if (!isBlank(value.techStack.monoFont)) {
-    lines.push(`- **Monospace**: ${value.techStack.monoFont}`);
-  }
-  lines.push(`- **TTS**: ${value.techStack.ttsService}`);
-  if (!isBlank(value.techStack.musicSource)) {
-    lines.push(`- **Música de fundo**: ${value.techStack.musicSource}`);
-  }
-  return lines;
+  return [
+    '## Tech Stack',
+    '',
+    ...TECH_STACK_LINES,
+    `- **Monospace**: ${MONO_FONT_SPECS[value.video.monoFont].css}`,
+    TTS_LINE,
+    MUSIC_SOURCE_LINE,
+  ];
 }
 
 function buildVideoConfig(value: PromptFormValue): string[] {
-  const lines: string[] = [];
-  lines.push('## Configurações do Vídeo');
-  lines.push('');
-  lines.push('| Propriedade | Valor |');
-  lines.push('|-------------|-------|');
-  const resolution = isBlank(value.video.formatDescription)
-    ? `${value.video.width}×${value.video.height}`
-    : `${value.video.width}×${value.video.height} (${value.video.formatDescription})`;
-  lines.push(`| Resolução | ${resolution} |`);
-  lines.push(`| FPS | ${integerOrRaw(value.video.fps)} |`);
-  const fps = normalizeInteger(value.video.fps) ?? Number(value.video.fps);
-  const total = normalizeInteger(value.video.totalFrames) ?? Number(value.video.totalFrames);
-  lines.push(
-    `| Duração total | ${integerOrRaw(value.video.totalFrames)} frames (~${framesToSeconds(total, fps)} segundos) |`,
-  );
+  const format = VIDEO_FORMAT_SPECS[value.video.format];
+  const total = totalFrames(value.scenes);
+  return [
+    '## Configurações do Vídeo',
+    '',
+    '| Propriedade | Valor |',
+    '|-------------|-------|',
+    `| Resolução | ${format.width}×${format.height} (${format.label}) |`,
+    `| FPS | ${FPS} |`,
+    `| Duração total | ${total} frames (~${framesToSeconds(total, FPS)} segundos) |`,
+  ];
+}
+
+function buildVoice(timeline: SceneTiming[]): string[] {
+  const prefix = VOICE_SETTINGS.audioPrefix;
+  return [
+    '## Narração (ElevenLabs)',
+    '',
+    '| Configuração | Valor |',
+    '|--------------|-------|',
+    `| Voice ID | \`${VOICE_SETTINGS.voiceId}\` |`,
+    `| Voz fallback (free) | ${VOICE_SETTINGS.fallbackName} — \`${VOICE_SETTINGS.fallbackVoiceId}\` |`,
+    `| Modelo | \`${VOICE_SETTINGS.model}\` |`,
+    `| Stability | ${VOICE_SETTINGS.stability} |`,
+    `| Similarity boost | ${VOICE_SETTINGS.similarityBoost} |`,
+    `| Style | ${VOICE_SETTINGS.style} |`,
+    `| Speaker boost | ${VOICE_SETTINGS.speakerBoost} |`,
+    '',
+    `Gerar um MP3 por cena com estas configurações. Nomeie os arquivos como \`${prefix}-s<cena>.mp3\`: ${timeline
+      .map((t) => `\`${audioFileName(prefix, t.id)}\``)
+      .join(', ')}.`,
+  ];
+}
+
+function buildMusic(): string[] {
+  return [
+    '## Música de Fundo',
+    '',
+    `- **Arquivo**: \`${MUSIC.file}\``,
+    `- **Volume**: ${MUSIC.volume} (bem baixo, sob a narração)`,
+    `- **Inicia em**: frame ${MUSIC.startFrame} (${framesToSeconds(MUSIC.startFrame, FPS)} segundos)`,
+    '- Toca pelo restante da duração',
+  ];
+}
+
+function buildScript(value: PromptFormValue, timeline: SceneTiming[]): string[] {
+  const lines = [
+    '## Roteiro de Narração (por cena)',
+    '',
+    '| Cena | Arquivo | Texto da narração |',
+    '|------|---------|-------------------|',
+  ];
+  value.scenes.forEach((scene, i) => {
+    const id = timeline[i].id;
+    lines.push(
+      `| ${id} — ${escapeTableCell(scene.title)} | ${audioFileName(VOICE_SETTINGS.audioPrefix, id)} | "${escapeTableCell(scene.narration)}" |`,
+    );
+  });
   return lines;
 }
 
-function buildVoice(value: PromptFormValue): string[] {
-  const lines: string[] = [];
-  lines.push('## Narração (ElevenLabs)');
-  lines.push('');
-  lines.push('| Configuração | Valor |');
-  lines.push('|--------------|-------|');
-  lines.push(`| Voice ID | \`${value.voice.voiceId}\` |`);
-  if (!isBlank(value.voice.fallbackName) || !isBlank(value.voice.fallbackVoiceId)) {
-    lines.push(`| Voz fallback (free) | ${value.voice.fallbackName} — \`${value.voice.fallbackVoiceId}\` |`);
-  }
-  lines.push(`| Modelo | \`${value.voice.model}\` |`);
-  lines.push(`| Stability | ${decimalOrRaw(value.voice.stability)} |`);
-  lines.push(`| Similarity boost | ${decimalOrRaw(value.voice.similarityBoost)} |`);
-  lines.push(`| Style | ${decimalOrRaw(value.voice.style)} |`);
-  lines.push(`| Speaker boost | ${value.voice.speakerBoost ? 'true' : 'false'} |`);
-  lines.push('');
-  const fileNames = value.scenes.map((scene) => audioFileName(value.voice.audioPrefix, scene.id));
-  const fileList = fileNames.map((name) => `\`${name}\``).join(', ');
-  lines.push(
-    `Gerar um MP3 por cena com estas configurações. Nomeie os arquivos como \`${value.voice.audioPrefix}-s<cena>.mp3\`: ${fileList}.`,
-  );
-  return lines;
-}
-
-function buildMusic(value: PromptFormValue): string[] {
-  const lines: string[] = [];
-  lines.push('## Música de Fundo');
-  lines.push('');
-  lines.push(`- **Arquivo**: \`${value.music.file}\``);
-  lines.push(`- **Volume**: ${decimalOrRaw(value.music.volume)}`);
-  const fps = normalizeInteger(value.video.fps) ?? Number(value.video.fps);
-  const startFrame = normalizeInteger(value.music.startFrame) ?? Number(value.music.startFrame);
-  lines.push(
-    `- **Inicia em**: frame ${integerOrRaw(value.music.startFrame)} (${framesToSeconds(startFrame, fps)} segundos)`,
-  );
-  lines.push('- Toca pelo restante da duração');
-  return lines;
-}
-
-function buildScript(value: PromptFormValue): string[] {
-  const lines: string[] = [];
-  lines.push('## Roteiro de Narração (por cena)');
-  lines.push('');
-  lines.push('| Cena | Arquivo | Texto da narração |');
-  lines.push('|------|---------|-------------------|');
-  for (const scene of value.scenes) {
-    const fileName = audioFileName(value.voice.audioPrefix, scene.id);
-    const title = escapeTableCell(scene.title);
-    const narration = escapeTableCell(scene.narration);
-    lines.push(`| ${scene.id} — ${title} | ${fileName} | "${narration}" |`);
-  }
-  return lines;
-}
-
-function buildSceneBreakdown(value: PromptFormValue): string[] {
-  const lines: string[] = [];
-  lines.push('## Detalhamento Cena a Cena');
-  lines.push('');
-  value.scenes.forEach((scene, index) => {
-    lines.push(`### Cena ${scene.id}: ${scene.title}`);
-    const start = normalizeInteger(scene.startFrame) ?? Number(scene.startFrame);
-    const end = normalizeInteger(scene.endFrame) ?? Number(scene.endFrame);
-    lines.push(`- **Frames**: ${scene.startFrame}–${scene.endFrame} (${end - start} frames)`);
+function buildSceneBreakdown(value: PromptFormValue, timeline: SceneTiming[]): string[] {
+  const lines = ['## Detalhamento Cena a Cena', ''];
+  value.scenes.forEach((scene, i) => {
+    const t = timeline[i];
+    lines.push(`### Cena ${t.id}: ${scene.title}`);
+    lines.push(`- **Frames**: ${t.start}–${t.end} (${t.duration} frames)`);
     lines.push(`- **Conteúdo**: ${indentContinuationLines(scene.content)}`);
-    if (!isBlank(scene.animation)) {
-      lines.push(`- **Animação**: ${indentContinuationLines(scene.animation)}`);
+    const animation = sceneAnimation(scene);
+    if (!isBlank(animation)) {
+      lines.push(`- **Animação**: ${indentContinuationLines(animation)}`);
     }
-    if (!isBlank(scene.fadeOutFrame)) {
-      lines.push(`- **Fade out**: frame ${scene.fadeOutFrame}`);
+    if (t.fadeOutFrame !== null) {
+      lines.push(`- **Fade out**: frame ${t.fadeOutFrame}`);
     }
-    if (index < value.scenes.length - 1) {
+    if (i < value.scenes.length - 1) {
       lines.push('');
     }
   });
   return lines;
 }
 
-function buildColorsSection(value: PromptFormValue, fallbacks: TemplateFallbacks): string[] {
-  if (isSubsectionEmpty(value, 'colors')) {
-    return [fallbacks.colors];
-  }
-  const rows = value.design.colors
-    .filter((color) => !(isBlank(color.name) && isBlank(color.value) && isBlank(color.comment)))
-    .map((color) => {
-      const line = `${color.name}:`.padEnd(13) + color.value + (isBlank(color.comment) ? '' : `  ${color.comment}`);
-      return line;
-    });
-  return ['```', ...rows, '```'];
+function buildDesignSystem(value: PromptFormValue): string[] {
+  const rows = colorTokens(value.colors).map(
+    (color) =>
+      `${color.name}:`.padEnd(13) +
+      color.value +
+      (isBlank(color.comment) ? '' : `  — ${color.comment}`),
+  );
+  const bg = value.colors.bg.trim();
+  return [
+    '## Sistema Visual de Design',
+    '',
+    '### Cores',
+    '',
+    '```',
+    ...rows,
+    '```',
+    '',
+    '### Fontes',
+    `- **Body**: ${FONT_BODY}`,
+    `- **Headlines/texto emocional**: ${FONT_HEADING}`,
+    `- **Monospace** (códigos): ${MONO_FONT_SPECS[value.video.monoFont].css}`,
+    '',
+    '### Fundo',
+    '',
+    `- Cor ${bg} com grid pattern sutil (60px spacing, border color com alpha 90 hex, 60% opacity)`,
+    '- Blob de gradiente radial rosa (canto superior-direito, 700px diâmetro, 25% alpha, blur 40px)',
+    '- Blob de gradiente radial pêssego (canto inferior-esquerdo, 700px diâmetro, 20% alpha, blur 40px)',
+    '',
+    '### Cards',
+    '',
+    ...CARDS_LINES,
+    '',
+    '### BrowserWindow Component',
+    '',
+    ...BROWSER_WINDOW_LINES,
+    '',
+    '### Padrões de Animação',
+    '',
+    ...ANIMATION_DEFAULT_LINES,
+  ];
 }
 
-function buildAnimationDefaults(value: PromptFormValue, fallbacks: TemplateFallbacks): string[] {
-  if (isSubsectionEmpty(value, 'animationDefaults')) {
-    return [fallbacks.animationDefaults];
-  }
-  const lines: string[] = [];
-  const { springDamping, springStiffness, springMass, fadeOut, stagger } = value.design;
-  if (!isBlank(springDamping) || !isBlank(springStiffness) || !isBlank(springMass)) {
-    const parts: string[] = [];
-    if (!isBlank(springDamping)) {
-      parts.push(`damping ${springDamping}`);
-    }
-    if (!isBlank(springStiffness)) {
-      parts.push(`stiffness ${springStiffness}`);
-    }
-    if (!isBlank(springMass)) {
-      parts.push(`mass ${springMass}`);
-    }
-    lines.push(`- **Spring**: ${parts.join(', ')}`);
-  }
-  if (!isBlank(fadeOut)) {
-    lines.push(`- **Fade out**: ${fadeOut}`);
-  }
-  if (!isBlank(stagger)) {
-    lines.push(`- **Stagger**: ${stagger}`);
-  }
-  return lines;
+function buildProcess(value: PromptFormValue, timeline: SceneTiming[]): string[] {
+  const product = value.brand.productName.trim();
+  const steps = [
+    `**Gerar áudio**: Use a API ElevenLabs com as configurações de voz acima e o roteiro de narração. Salve como ${audioFileRange(VOICE_SETTINGS.audioPrefix, timeline)}.`,
+    `**Medir durações**: Use \`ffprobe\` para obter a duração de cada arquivo de áudio em segundos, multiplique por ${FPS} (fps) para obter frames. Adicione 5 frames de padding.`,
+    '**Ajustar timings das cenas**: Os valores de frame acima são estimativas. Recalcule `from` e `durationInFrames` de cada cena com base nos arquivos de áudio reais.',
+    '**Construir cenas**: Siga as descrições acima. Todo UI é construído em React (sem screenshots).',
+    `**Adicionar música de fundo**: Coloque a música em \`${MUSIC.file}\`, volume ${MUSIC.volume}, iniciando no frame ${MUSIC.startFrame}.`,
+    `**Assets necessários**: Logo do ${product} em \`${value.brand.logoPath.trim()}\` (quadrado, versão escura).`,
+  ];
+  return ['## Processo para Recriar', '', ...steps.map((step, i) => `${i + 1}. ${step}`)];
 }
 
-function buildDesignSystem(value: PromptFormValue, fallbacks: TemplateFallbacks): string[] {
-  const lines: string[] = [];
-  lines.push('## Sistema Visual de Design');
-  lines.push('');
-  lines.push('### Cores');
-  lines.push('');
-  lines.push(...buildColorsSection(value, fallbacks));
-  lines.push('');
-  lines.push('### Fontes');
-  lines.push(`- **Body**: ${value.techStack.bodyFont}`);
-  lines.push(`- **Headlines/texto emocional**: ${value.techStack.headingFont}`);
-  if (!isBlank(value.techStack.monoFont)) {
-    lines.push(`- **Monospace**: ${value.techStack.monoFont}`);
-  }
-  lines.push('');
-  lines.push('### Fundo');
-  lines.push('');
-  lines.push(isSubsectionEmpty(value, 'background') ? fallbacks.background : toLf(value.design.background));
-  lines.push('');
-  lines.push('### Cards');
-  lines.push('');
-  lines.push(isSubsectionEmpty(value, 'cards') ? fallbacks.cards : toLf(value.design.cards));
-  lines.push('');
-  lines.push('### BrowserWindow Component');
-  lines.push('');
-  lines.push(isSubsectionEmpty(value, 'browserWindow') ? fallbacks.browserWindow : toLf(value.design.browserWindow));
-  lines.push('');
-  lines.push('### Padrões de Animação');
-  lines.push('');
-  lines.push(...buildAnimationDefaults(value, fallbacks));
-  return lines;
-}
-
-function buildProcess(value: PromptFormValue, fallbacks: TemplateFallbacks): string[] {
-  const lines: string[] = [];
-  lines.push('## Processo para Recriar');
-  lines.push('');
-  if (isSubsectionEmpty(value, 'processSteps')) {
-    lines.push(fallbacks.processSteps);
-  } else {
-    const filled = value.process.steps.filter((step) => !isBlank(step));
-    filled.forEach((step, i) => {
-      lines.push(`${i + 1}. ${step}`);
-    });
-  }
-  return lines;
-}
-
-function buildPrinciples(value: PromptFormValue, fallbacks: TemplateFallbacks): string[] {
-  const lines: string[] = [];
-  lines.push('## Princípios de Design');
-  lines.push('');
-  if (isSubsectionEmpty(value, 'principles')) {
-    lines.push(fallbacks.principles);
-  } else {
-    const filled = value.principles.items.filter((item) => !isBlank(item));
-    filled.forEach((item) => {
-      lines.push(`- ${item}`);
-    });
-  }
-  return lines;
+function buildPrinciples(value: PromptFormValue): string[] {
+  const extra = toLf(value.extraPrinciples)
+    .split('\n')
+    .map((line) => line.trim().replace(/^[-*]\s+/, ''))
+    .filter((line) => line !== '');
+  return [
+    '## Princípios de Design',
+    '',
+    ...[...BASE_PRINCIPLES, ...extra].map((item) => `- ${item}`),
+  ];
 }
 
 /**
  * Gera o markdown completo do PROMPT.md (CT-4) a partir do valor tipado do
- * formulário. Função pura: não valida `value`, apenas monta a saída seguindo
- * o "Layout CT-4" exato do contrato.
+ * formulário. Função pura: não valida `value`.
  */
-export function generatePromptMarkdown(
-  value: PromptFormValue,
-  fallbacks: TemplateFallbacks = TEMPLATE_FALLBACKS,
-): string {
+export function generatePromptMarkdown(value: PromptFormValue): string {
+  const timeline = sceneTimeline(value.scenes);
   const blocks: string[][] = [
     buildHeader(value),
     ['---'],
     buildTechStack(value),
     buildVideoConfig(value),
     ['---'],
-    buildVoice(value),
-    buildMusic(value),
+    buildVoice(timeline),
+    buildMusic(),
     ['---'],
-    buildScript(value),
+    buildScript(value, timeline),
     ['---'],
-    buildSceneBreakdown(value),
+    buildSceneBreakdown(value, timeline),
     ['---'],
-    buildDesignSystem(value, fallbacks),
+    buildDesignSystem(value),
     ['---'],
-    buildProcess(value, fallbacks),
+    buildProcess(value, timeline),
     ['---'],
-    buildPrinciples(value, fallbacks),
+    buildPrinciples(value),
   ];
 
   const output = blocks.map((block) => block.join('\n')).join('\n\n');

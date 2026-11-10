@@ -1,5 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { GeneralSections } from './general-sections';
 import { buildPromptForm, PromptForm } from '../prompt-form.factory';
@@ -14,139 +16,71 @@ class HostComponent {
   form: PromptForm = buildPromptForm(TEMPLATE_DEFAULTS);
 }
 
+async function render() {
+  const fixture = TestBed.createComponent(HostComponent);
+  fixture.detectChanges();
+  await fixture.whenStable();
+  fixture.detectChanges();
+  return fixture;
+}
+
 describe('GeneralSections', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [HostComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
-  it('renderiza os 5 <legend> na ordem correta', async () => {
-    const fixture = TestBed.createComponent(HostComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
+  it('renderiza só Marca e Vídeo (Narração é constante)', async () => {
+    const compiled = (await render()).nativeElement as HTMLElement;
+    const legends = Array.from(compiled.querySelectorAll('legend')).map((el) =>
+      el.textContent?.trim(),
+    );
+    expect(legends).toEqual(['Marca', 'Vídeo']);
+  });
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    const legends = Array.from(compiled.querySelectorAll('legend')).map((el) => el.textContent?.trim());
-
-    expect(legends).toEqual([
-      'Identificação',
-      'Tech Stack',
-      'Configurações do Vídeo',
-      'Narração',
-      'Música de Fundo',
+  it('só mostra os campos variáveis; campos fixos do template não aparecem', async () => {
+    const compiled = (await render()).nativeElement as HTMLElement;
+    const ids = Array.from(compiled.querySelectorAll('input, select, textarea')).map((el) => el.id);
+    expect(ids).toEqual([
+      'f-brand-productName',
+      'f-brand-logo',
+      'f-video-format',
+      'f-video-monoFont',
     ]);
   });
 
-  it('todo campo obrigatório tem " *" e todo opcional não tem', async () => {
-    const fixture = TestBed.createComponent(HostComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-
-    const requiredIds = [
-      'f-identity-documentTitle',
-      'f-techStack-videoFramework',
-      'f-techStack-bodyFont',
-      'f-techStack-headingFont',
-      'f-techStack-ttsService',
-      'f-video-width',
-      'f-video-height',
-      'f-video-fps',
-      'f-video-totalFrames',
-      'f-voice-voiceId',
-      'f-voice-model',
-      'f-voice-stability',
-      'f-voice-similarityBoost',
-      'f-voice-style',
-      'f-voice-audioPrefix',
-      'f-music-file',
-      'f-music-volume',
-      'f-music-startFrame',
-    ];
-
-    const optionalIds = [
-      'f-identity-productName',
-      'f-identity-usageLine',
-      'f-techStack-monoFont',
-      'f-techStack-musicSource',
-      'f-video-formatDescription',
-      'f-voice-fallbackName',
-      'f-voice-fallbackVoiceId',
-    ];
-
-    requiredIds.forEach((id) => {
-      const field = compiled.querySelector(`#${id}`) as HTMLElement;
-      const container = field.parentElement as HTMLElement;
-      expect(container.querySelector('label')?.textContent).toContain('*');
-    });
-
-    optionalIds.forEach((id) => {
-      const field = compiled.querySelector(`#${id}`) as HTMLElement;
-      const container = field.parentElement as HTMLElement;
-      expect(container.querySelector('label')?.textContent).not.toContain('*');
-    });
+  it('nome do produto e logo têm " *"', async () => {
+    const compiled = (await render()).nativeElement as HTMLElement;
+    expect(compiled.querySelector('label[for="f-brand-productName"]')?.textContent).toContain('*');
+    expect(compiled.querySelector('#f-brand-logo-label')?.textContent).toContain('*');
   });
 
-  it('existem os ids dos campos-âncora', async () => {
-    const fixture = TestBed.createComponent(HostComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
+  it('selects listam as opções do enum e refletem o valor do formulário', async () => {
+    const fixture = await render();
     const compiled = fixture.nativeElement as HTMLElement;
+    const format = compiled.querySelector('#f-video-format') as HTMLSelectElement;
 
-    [
-      'f-identity-productName',
-      'f-identity-documentTitle',
-      'f-video-width',
-      'f-video-totalFrames',
-      'f-voice-voiceId',
-      'f-voice-speakerBoost',
-      'f-music-startFrame',
-    ].forEach((id) => {
-      expect(compiled.querySelector(`#${id}`)).toBeTruthy();
-    });
+    expect(Array.from(format.options).map((o) => o.value)).toEqual([
+      'LANDSCAPE_16_9',
+      'VERTICAL_9_16',
+      'SQUARE_1_1',
+    ]);
+    expect(format.value).toBe('LANDSCAPE_16_9');
+
+    format.value = 'SQUARE_1_1';
+    format.dispatchEvent(new Event('change'));
+    expect(fixture.componentInstance.form.controls.video.controls.format.value).toBe('SQUARE_1_1');
   });
 
-  it('marcar/desmarcar o checkbox muda form.controls.voice.controls.speakerBoost.value', async () => {
-    const fixture = TestBed.createComponent(HostComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    const checkbox = compiled.querySelector('#f-voice-speakerBoost') as HTMLInputElement;
-    const control = fixture.componentInstance.form.controls.voice.controls.speakerBoost;
-
-    expect(control.value).toBe(true);
-
-    checkbox.click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(control.value).toBe(false);
-
-    checkbox.click();
-    fixture.detectChanges();
-    await fixture.whenStable();
-
-    expect(control.value).toBe(true);
+  it('logo é escolhido por arquivo, não digitado', async () => {
+    const compiled = (await render()).nativeElement as HTMLElement;
+    expect((compiled.querySelector('#f-brand-logo') as HTMLInputElement).type).toBe('file');
   });
 
-  it('f-identity-usageLine é textarea com maxlength="5000"', async () => {
-    const fixture = TestBed.createComponent(HostComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const compiled = fixture.nativeElement as HTMLElement;
-    const textarea = compiled.querySelector('#f-identity-usageLine') as HTMLTextAreaElement;
-
-    expect(textarea.tagName).toBe('TEXTAREA');
-    expect(textarea.getAttribute('maxlength')).toBe('5000');
+  it('mostra como dica os valores fixos do vídeo', async () => {
+    const text = ((await render()).nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('30 fps');
   });
 });

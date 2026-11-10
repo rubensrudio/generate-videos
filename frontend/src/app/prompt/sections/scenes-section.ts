@@ -1,41 +1,106 @@
 /**
  * Seção de cenas do formulário do PROMPT.md (CT-15).
  *
- * Renderiza um bloco por cena (CT-16), com os botões de adicionar, remover e
- * mover (↑/↓). Toda mudança estrutural (add/remove/move) chama
- * `scenes.updateValueAndValidity()` e emite `structureChange` para que a
- * página religue as assinaturas de revalidação cruzada (fora do escopo desta
- * task).
+ * Renderiza uma tabela (CT-16 nos ids de linha/ação) com uma linha resumida
+ * por cena, e um drawer lateral com os campos da cena em edição — a edição é
+ * ao vivo sobre o `FormGroup` da cena, não transacional.
+ *
+ * O usuário informa só a duração de cada cena: id, frame inicial/final,
+ * fade out e duração total são derivados (`prompt-derived.ts`) e recalculados
+ * a cada ciclo, então adicionar, remover ou mover cenas não exige revalidação.
  */
 
-import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { FormArray, FormControl, ReactiveFormsModule } from '@angular/forms';
+import { Component, Input, signal } from '@angular/core';
+import { FormArray, ReactiveFormsModule } from '@angular/forms';
 
 import { TextField } from '../ui/text-field';
+import { SelectField } from '../ui/select-field';
+import { Drawer } from '../ui/drawer';
+import { ItemsTable, ItemRow } from '../ui/items-table';
 import { SceneForm, buildSceneGroup } from '../prompt-form.factory';
 import { createEmptyScene } from '../template-defaults';
-import { timelineWarnings } from '../timeline-warnings';
+import { FPS, MUSIC, SCENE_TYPE_OPTIONS, SCENE_TYPE_SPECS } from '../prompt-constants';
+import { SceneTiming, sceneTimeline } from '../prompt-derived';
+import { framesToSeconds } from '../markdown-utils';
 import { LONG_TEXT_MAX, MAX_SCENES, MIN_SCENES, SHORT_TEXT_MAX } from '../prompt.model';
 
 @Component({
   selector: 'app-scenes-section',
   standalone: true,
-  imports: [ReactiveFormsModule, TextField],
+  imports: [ReactiveFormsModule, TextField, SelectField, Drawer, ItemsTable],
   templateUrl: './scenes-section.html',
 })
 export class ScenesSection {
   @Input({ required: true }) scenes!: FormArray<SceneForm>;
-  @Input({ required: true }) totalFrames!: FormControl<string>;
-
-  @Output() readonly structureChange = new EventEmitter<void>();
 
   protected readonly maxScenes = MAX_SCENES;
   protected readonly minScenes = MIN_SCENES;
   protected readonly shortTextMax = SHORT_TEXT_MAX;
   protected readonly longTextMax = LONG_TEXT_MAX;
+  protected readonly sceneTypeOptions = SCENE_TYPE_OPTIONS;
+
+  protected readonly editingIndex = signal<number | null>(null);
 
   protected fieldId(index: number, field: string): string {
     return `f-scenes-${index}-${field}`;
+  }
+
+  private timeline(): SceneTiming[] {
+    return sceneTimeline(this.scenes.getRawValue());
+  }
+
+  protected rows(): ItemRow[] {
+    const timeline = this.timeline();
+    return this.scenes.controls.map((scene, i) => {
+      const t = timeline[i];
+      const title = scene.controls.title.value.trim() || `Cena ${t.id}`;
+      const type = SCENE_TYPE_SPECS[scene.controls.type.value].label;
+      return {
+        title: `${t.id} — ${title}`,
+        subtitle: `${type} · frames ${t.start}–${t.end}`,
+        invalid: scene.invalid && scene.touched,
+      };
+    });
+  }
+
+  protected totalSummary(): string {
+    const timeline = this.timeline();
+    const total = timeline.length === 0 ? 0 : timeline[timeline.length - 1].end;
+    return `Duração total: ${total} frames (~${framesToSeconds(total, FPS)} s)`;
+  }
+
+  protected musicWarning(): string | null {
+    const timeline = this.timeline();
+    const total = timeline.length === 0 ? 0 : timeline[timeline.length - 1].end;
+    return total <= MUSIC.startFrame
+      ? `Aviso: a música de fundo começa no frame ${MUSIC.startFrame}, depois do fim do vídeo`
+      : null;
+  }
+
+  protected editingScene(): SceneForm | null {
+    const index = this.editingIndex();
+    return index === null ? null : this.scenes.at(index);
+  }
+
+  protected drawerTitle(): string {
+    const index = this.editingIndex();
+    if (index === null) {
+      return '';
+    }
+    const t = this.timeline()[index];
+    return `Cena ${t.id} · frames ${t.start}–${t.end}`;
+  }
+
+  protected durationHint(index: number): string {
+    const t = this.timeline()[index];
+    return `~${framesToSeconds(t.duration, FPS)} s a ${FPS} fps. Estimativa: o tempo final vem da duração do áudio.`;
+  }
+
+  protected animationHint(scene: SceneForm): string {
+    const fallback = SCENE_TYPE_SPECS[scene.controls.type.value].animation;
+    return fallback === ''
+      ? 'Opcional. Descreva a animação desta cena.'
+      : `Opcional. Vazio usa o padrão do tipo: ${fallback}`;
   }
 
   protected canAdd(): boolean {
@@ -46,52 +111,44 @@ export class ScenesSection {
     return this.scenes.length > this.minScenes;
   }
 
-  protected canMoveUp(index: number): boolean {
-    return index > 0;
+  protected onEdit(index: number): void {
+    this.editingIndex.set(index);
   }
 
-  protected canMoveDown(index: number): boolean {
-    return index < this.scenes.length - 1;
+  protected onCloseDrawer(): void {
+    this.editingIndex.set(null);
   }
 
-  protected showNoValidSceneError(): boolean {
-    return !!this.scenes.errors?.['noValidScene'] && this.scenes.touched;
-  }
-
-  protected warnings(): string[] {
-    return timelineWarnings(this.scenes.getRawValue(), this.totalFrames.value);
-  }
-
-  protected addScene(): void {
+  protected onAdd(): void {
     if (!this.canAdd()) {
       return;
     }
     this.scenes.push(buildSceneGroup(createEmptyScene()));
-    this.emitStructureChange();
+    this.editingIndex.set(this.scenes.length - 1);
   }
 
-  protected removeScene(index: number): void {
+  protected onRemove(index: number): void {
     if (!this.canRemove()) {
       return;
     }
     this.scenes.removeAt(index);
-    this.emitStructureChange();
+    this.editingIndex.set(null);
   }
 
-  protected moveUp(index: number): void {
-    if (!this.canMoveUp(index)) {
+  protected onMoveUp(index: number): void {
+    if (index <= 0) {
       return;
     }
     this.swap(index - 1, index);
-    this.emitStructureChange();
+    this.editingIndex.set(null);
   }
 
-  protected moveDown(index: number): void {
-    if (!this.canMoveDown(index)) {
+  protected onMoveDown(index: number): void {
+    if (index >= this.scenes.length - 1) {
       return;
     }
     this.swap(index, index + 1);
-    this.emitStructureChange();
+    this.editingIndex.set(null);
   }
 
   private swap(a: number, b: number): void {
@@ -101,10 +158,5 @@ export class ScenesSection {
     this.scenes.removeAt(a);
     this.scenes.insert(a, higher);
     this.scenes.insert(b, lower);
-  }
-
-  private emitStructureChange(): void {
-    this.scenes.updateValueAndValidity();
-    this.structureChange.emit();
   }
 }

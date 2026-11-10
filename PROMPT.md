@@ -1,14 +1,14 @@
-# NotaFlow — Vídeo de Apresentação (Product Hunt / Lançamento)
+# testando — Vídeo de Apresentação
 
-> Use este prompt com Claude para criar o vídeo de apresentação do NotaFlow usando Remotion.
+> Use este prompt com Claude para criar o vídeo de apresentação do testando usando Remotion.
 
 ---
 
 ## Tech Stack
 
 - **Remotion 4.x** (React + TypeScript)
-- **Fonts**: `@remotion/google-fonts` — **Inter** (weights: 400, 500, 600, 700) e **Instrument Serif** (weight: 400)
-- **Monospace**: JetBrains Mono (para CNPJs, protocolos, códigos)
+- **Fontes**: `@remotion/google-fonts` — **Inter** (weights: 400, 500, 600, 700) e **Instrument Serif** (weight: 400)
+- **Monospace**: `'SF Mono', 'Fira Code', 'Cascadia Code', monospace`
 - **TTS**: ElevenLabs API (token em `.env`)
 - **Música de fundo**: Royalty-free em `/public`
 
@@ -16,9 +16,9 @@
 
 | Propriedade | Valor |
 |-------------|-------|
-| Resolução | 1920×1080 (16:9 landscape) |
+| Resolução | 1920×1080 (16:9 paisagem) |
 | FPS | 30 |
-| Duração total | ~1400 frames (~46.7 segundos) |
+| Duração total | 1389 frames (~46.3 segundos) |
 
 ---
 
@@ -27,18 +27,18 @@
 | Configuração | Valor |
 |--------------|-------|
 | Voice ID | `S4M4JhZIzYGUlDsYIOow` |
-| Voz fallback (free) | Laura — `S4M4JhZIzYGUlDsYIOow` |
+| Voz fallback (free) | Laura — `FGY2WhTYpPnrIDTdsKH5` |
 | Modelo | `eleven_multilingual_v2` |
 | Stability | 0.3 |
 | Similarity boost | 0.8 |
 | Style | 0.8 |
 | Speaker boost | true |
 
-Gerar um MP3 por cena com estas configurações. Nomeie como `v1-s01.mp3` até `v1-s10.mp3` (mais `v1-s06b.mp3`).
+Gerar um MP3 por cena com estas configurações. Nomeie os arquivos como `v1-s<cena>.mp3`: `v1-s01.mp3`, `v1-s02.mp3`, `v1-s03.mp3`, `v1-s04.mp3`, `v1-s05.mp3`, `v1-s06.mp3`, `v1-s06b.mp3`, `v1-s07.mp3`, `v1-s08.mp3`, `v1-s09.mp3`, `v1-s10.mp3`.
 
 ## Música de Fundo
 
-- **Arquivo**: `/public/background.mp3` (royalty-free)
+- **Arquivo**: `/public/background.mp3`
 - **Volume**: 0.15 (bem baixo, sob a narração)
 - **Inicia em**: frame 45 (1.5 segundos)
 - Toca pelo restante da duração
@@ -49,17 +49,17 @@ Gerar um MP3 por cena com estas configurações. Nomeie como `v1-s01.mp3` até `
 
 | Cena | Arquivo | Texto da narração |
 |------|---------|-------------------|
-| 1 — Intro | v1-s01.mp3 | "Apresentamos o NotaFlow. Emissão de NFS-e inteligente para empresas de serviço." |
-| 2 — Urgência | v1-s02.mp3 | "A partir de 2026, toda empresa de serviço precisa emitir NFS-e pela API Nacional. O prazo está chegando." |
-| 3 — Dor | v1-s03.mp3 | "Mas a realidade é outra. Certificado digital, XML, validação, integração com a Receita Federal. Dias de configuração. Múltiplas ferramentas. Complexidade infinita." |
-| 4 — Agitação | v1-s04.mp3 | "Enquanto isso, suas notas não saem. Seus clientes esperam. E o fiscal bate na porta." |
-| 5 — Alívio | v1-s05.mp3 | "Ou... você simplesmente usa o NotaFlow." |
-| 6 — Funcionalidades | v1-s06.mp3 | "Emissão individual ou em lote. Até 500 notas de uma vez. Em segundos." |
-| 6b — Preview da nota | v1-s06b.mp3 | "Formulário guiado. Certificado digital seguro. Tudo validado antes do envio." |
-| 7 — Automação | v1-s07.mp3 | "Acompanhe cada nota em tempo real. Dashboard completo. Histórico de emissões. Download de PDF e XML." |
-| 8 — Métricas | v1-s08.mp3 | "Suas notas saem. Seus clientes recebem. Sua empresa fica em dia." |
-| 9 — Mic drop | v1-s09.mp3 | "De zero a uma operação fiscal completa. Em menos de cinco minutos." |
-| 10 — CTA | v1-s10.mp3 | "Teste grátis por 14 dias em notafiscalflow.com.br" |
+| 1 — Intro | v1-s01.mp3 | "Introducing Sendkit. AI-native email infrastructure." |
+| 2 — Signups Pouring In | v1-s02.mp3 | "You just launched your SaaS. Users are signing up." |
+| 3 — Pain — No Emails Sent | v1-s03.mp3 | "But nothing happens. No welcome email. No first steps. They signed up and forgot you exist." |
+| 4 — Agitation — Complexity | v1-s04.mp3 | "Setting up email infrastructure takes days. Multiple tools. Endless configuration." |
+| 5 — Relief — Just Tell Sendkit | v1-s05.mp3 | "Or... you just tell Sendkit what you need." |
+| 6 — Templates Created | v1-s06.mp3 | "Seven emails. Created in seconds." |
+| 6b — Email Preview | v1-s06b.mp3 | "Pixel-perfect. Personalized. Ready to send." |
+| 7 — Automation Flow | v1-s07.mp3 | "Your automation goes live. Every signup gets the right email, at the right time." |
+| 8 — Metrics Payoff | v1-s08.mp3 | "They engage. They convert. They pay." |
+| 9 — Mic Drop | v1-s09.mp3 | "From zero to a complete email stack. Under five minutes." |
+| 10 — CTA | v1-s10.mp3 | "Try free at sendkit.dev" |
 
 ---
 
@@ -67,145 +67,158 @@ Gerar um MP3 por cena com estas configurações. Nomeie como `v1-s01.mp3` até `
 
 ### Cena 1: Intro
 - **Frames**: 0–138 (138 frames)
-- **Conteúdo**: Logo do NotaFlow (ícone `receipt_long`, 100×100, rounded 22px) surge com spring de scale 0 → 1. Título "Apresentamos o NotaFlow" em Instrument Serif 76px. Subtítulo "Emissão de NFS-e inteligente" em Inter 28px, cor muted.
-- **Animação**: Logo spring no frame 2, título no frame 8 (slide up 30px), subtítulo no frame 18 (slide up 15px). Fade out começa no frame 126 (opacity → 0, scale → 0.96 em 12 frames).
+- **Conteúdo**: Sendkit logo (100×100, rounded 22px) springs in from scale 0 → 1. Title "Introducing Sendkit" in Instrument Serif 76px. Subtitle "AI-native email infrastructure" in Inter 28px, muted color.
+- **Animação**: Logo spring no frame 2 (scale 0 → 1), título no frame 8 (slide up 30px), subtítulo no frame 18 (slide up 15px).
+- **Fade out**: frame 126
 
-### Cena 2: Urgência — Prazo 2026
-- **Frames**: 138–243 (105 frames)
-- **Conteúdo**: Card central (700px wide) estilo "alerta oficial". Ícone de calendário no topo. Texto grande "01/01/2026" em Instrument Serif 72px, cor foreground. Abaixo: "API Nacional NFS-e obrigatória" em Inter 24px, muted. Um countdown visual com três blocos (dias, horas, minutos) em cards menores com fundo greenLight.
-- **Animação**: Card principal spring no frame 3 (scale 0.9→1). Data surge no frame 10, subtítulo no frame 18. Blocos do countdown stagger a cada 8 frames a partir do frame 25. Fade out no frame 93.
+### Cena 2: Signups Pouring In
+- **Frames**: 138–233 (95 frames)
+- **Conteúdo**: BrowserWindow component (700px wide, URL: "yourapp.com/dashboard"). Dashboard header with green badge "X new signups today" counting up to 12. Five signup notification rows stagger in from the right.
+  Signups: Sarah K (sarah@acme.co, green), James M (james@startup.io, blue), Alex R (alex@company.com, purple), Maria D (maria@design.co, orange), Tom A (tom@agency.dev, green)
+- **Animação**: Card ou janela principal spring no frame 3 (scale 0.9 → 1). Itens internos entram em stagger a cada 10 frames a partir do frame 8, deslizando 120px da direita.
+- **Fade out**: frame 83
 
-### Cena 3: Dor — Complexidade
-- **Frames**: 243–437 (194 frames)
-- **Duas fases**:
-  - **Fase 1 (frames 0–95)**: Seis cards flutuantes (200px wide, padding 16px 20px, rounded 12px, white bg, shadow `0 4px 20px rgba(0,0,0,0.06)`) espalhados com rotação. Cada card tem um dot colorido (8px) + label (15px, weight 600) + conteúdo único. Conectados por linhas SVG tracejadas (strokeWidth 1.5, dasharray 8, 60% opacity):
-    - Certificado Digital (green, x:-320 y:-180 rot:-6) — mostra ícone de cadeado + "A1 PFX/P12"
-    - Geração XML (purple, x:80 y:-200 rot:4) — mostra blocos de código XML esqueleto
-    - Validação Schema (orange, x:-200 y:-20 rot:-3) — mostra ícone de checklist com X vermelho
-    - API Receita Federal (blue, x:180 y:-40 rot:5) — mostra `POST /nfse/enviar` em mono
-    - Configuração DNS (red, x:-280 y:140 rot:-8) — mostra SPF/DKIM/TXT tags
-    - Assinatura Digital (purple, x:120 y:160 rot:7) — mostra ícone de certificado + hash
-  - **Fase 2 (a partir do frame 95)**: Header "Dias de configuração" (28px, weight 600) + "Múltiplas ferramentas. Complexidade infinita." (22px, muted). Texto em Instrument Serif 38px itálico, muted: "Enquanto isso, suas notas não saem." (aparece no frame 125 com slide up 15px).
-- **Animação**: Cards stagger a cada 12 frames (scale 0.3→1). Linhas de conexão surgem entre frames 50–100. Fade out no frame 182.
+### Cena 3: Pain — No Emails Sent
+- **Frames**: 233–427 (194 frames)
+- **Conteúdo**: Two phases:
+  Phase 1 (frames 0–95): Same BrowserWindow (900px wide) but with "Users leaving" red badge. The same 5 signup rows progressively fade out and slide right (grayscale filter increases). Desaturation builds over time.
+  Phase 2 (from frame 95): Giant red "0" (160px, Inter bold 700) springs in with "emails sent" (24px, muted) below it. Then italic Instrument Serif 38px text in muted color: "They signed up... and forgot you exist." (appears at frame 125 with slide up 15px).
+- **Animação**: Fase 1: elementos perdem cor (grayscale crescente) e deslizam para fora. Fase 2 (a partir do frame 95): número ou frase de impacto com spring, seguido de texto em Instrument Serif itálico no frame 125 (slide up 15px).
+- **Fade out**: frame 182
 
-### Cena 4: Agitação — Consequências
-- **Frames**: 437–589 (152 frames)
-- **Conteúdo**: BrowserWindow (900px wide, URL: "receita.fazenda.gov.br"). Dashboard simulado com 3 alertas em vermelho escalonados:
-  - "⚠ 47 notas pendentes de emissão" (badge vermelho)
-  - "⚠ Cliente aguardando NFS-e há 5 dias" (badge laranja)
-  - "⚠ Prazo fiscal vencendo em 48h" (badge vermelho pulsante)
-- Abaixo do browser, texto grande em vermelho "0" (160px, Inter bold 700) com "notas emitidas este mês" (24px, muted). Depois, Instrument Serif 38px itálico muted: "E o fiscal bate na porta."
-- **Animação**: Browser spring no frame 3. Alertas stagger a cada 15 frames. "0" spring no frame 70. Texto final no frame 95 (slide up 15px). Fade out no frame 140.
+### Cena 4: Agitation — Complexity
+- **Frames**: 427–579 (152 frames)
+- **Conteúdo**: Header text "Days of setup" (28px, weight 600) + "Multiple tools. Endless configuration." (22px, muted). Six floating tool cards (200px wide, padding 16px 20px, rounded 12px, white bg, shadow `0 4px 20px rgba(0,0,0,0.06)`) scattered with rotation. Each card has a colored dot (8px) at top + label (15px, weight 600) + unique content. All connected by messy dashed SVG lines (strokeWidth 1.5, dasharray 8, 60% opacity):
+  Email API (blue, x:-320 y:-180 rot:-6) — shows `POST /v1/send` in mono font
+  Template Builder (purple, x:80 y:-200 rot:4) — shows skeleton wireframe blocks
+  Automation Tool (orange, x:-200 y:-20 rot:-3) — shows SVG circle→line→circle flow
+  Analytics Dashboard (green, x:180 y:-40 rot:5) — shows mini bar chart
+  SMTP Config (red, x:-280 y:140 rot:-8) — shows Host/Port form fields
+  DNS Setup (purple, x:120 y:160 rot:7) — shows TXT/CNAME/MX tags
+- **Animação**: Cards entram em stagger a cada 12 frames (scale 0.3 → 1). Linhas de conexão tracejadas surgem entre os frames 50 e 100.
+- **Fade out**: frame 140
 
-### Cena 5: Alívio — NotaFlow
-- **Frames**: 589–706 (117 frames)
-- **Conteúdo**: Card grande (760px wide) com logo NotaFlow + nome + badge verde "NFS-e Nacional". Efeito typewriter digita: "Emitir nota fiscal para ACME Consultoria, CNPJ 12.345.678/0001-90, serviço de consultoria em TI" (frames 10–50). Após frame 52, três dots animados de "processando" (cycling green/gray).
-- **Fade out**: frame 105.
+### Cena 5: Relief — Just Tell Sendkit
+- **Frames**: 579–696 (117 frames)
+- **Conteúdo**: Large card (760px wide) with Sendkit logo + name + green "MCP" badge. Typewriter effect types: "Create a 7-day onboarding email sequence for my SaaS". Then three animated thinking dots appear (cycling green/gray).
+- **Animação**: Card com spring de entrada. Efeito typewriter digita o texto entre os frames 10 e 50. Após o frame 52, três dots animados de "processando" (alternando verde/cinza).
+- **Fade out**: frame 105
 
-### Cena 6: Funcionalidades — Emissão em Lote
-- **Frames**: 706–832 (126 frames)
-- **Conteúdo**: Sete cards em lista vertical (600px wide), cada um com checkmark verde:
-  1. NFS-e #001 — ACME Consultoria (R$ 5.200,00)
-  2. NFS-e #002 — Tech Solutions (R$ 3.800,00)
-  3. NFS-e #003 — Digital Agency (R$ 7.150,00)
-  4. NFS-e #004 — StartupX (R$ 2.400,00)
-  5. NFS-e #005 — DataCorp (R$ 9.600,00)
-  6. NFS-e #006 — CloudBase (R$ 4.300,00)
-  7. NFS-e #007 — InnovaLab (R$ 6.750,00)
-- **Animação**: Cards alternam slide da esquerda (-200px) e direita (+200px) a cada 8 frames. Badge verde "7 notas · 1 lote · CSV upload" aparece no frame 70. Fade out no frame 114.
+### Cena 6: Templates Created
+- **Frames**: 696–822 (126 frames)
+- **Conteúdo**: Seven template cards in a vertical list (600px wide), each with green checkmark:
+  Day 1 — Welcome aboard
+  Day 2 — Getting started
+  Day 3 — Tips for your first week
+  Day 4 — What others are building
+  Day 5 — A feature you'll love
+  Day 6 — Your journey so far
+  Day 7 — We'd love feedback
+  Summary badge (green): "7 templates · 1 prompt"
+- **Animação**: Cards alternam slide da esquerda (-200px) e da direita (+200px) a cada 8 frames. Badge de resumo aparece no frame 70.
+- **Fade out**: frame 114
 
-### Cena 6b: Preview do Formulário de Emissão
-- **Frames**: 832–956 (124 frames)
-- **Conteúdo**: Card de formulário guiado (620px wide, padding 40px 24px). Contém:
-  - Logo NotaFlow (28px height, rounded 4px)
-  - Heading (28px, bold): "Emissão de NFS-e"
-  - **Step indicator**: 3 etapas (Dados → Serviço → Certificado) com dots conectados, step atual em verde
-  - **Bloco Prestador**: Card creme (#f5f5f0) rounded com "CNPJ: 12.345.678/0001-90" em JetBrains Mono + "Razão Social: HaloTechLabs LTDA" em Inter
-  - **Bloco Tomador**: Card creme com "CNPJ: 98.765.432/0001-10" em JetBrains Mono + "Razão Social: ACME Consultoria" em Inter
-  - **Bloco Serviço**: Card creme com "Código: 1.01" + "Descrição: Consultoria em TI" + "Valor: R$ 5.200,00" em destaque verde (24px bold)
-  - Botão CTA verde (#1B5E20 bg, white text, rounded 50px, 15px font): "Emitir NFS-e →"
-  - Texto pequeno (14px, muted): "Certificado digital criptografado · nunca armazenado no servidor"
-- **Animação**: Reveal escalonado — cada seção fade in e slide up 15px, espaçados 8 frames (logo no frame 10, heading no 18, steps no 26, prestador no 34, tomador no 40, serviço no 46, botão no 52, texto segurança no 58). Fade out no frame 112.
+### Cena 6b: Email Preview
+- **Frames**: 822–946 (124 frames)
+- **Conteúdo**: A pixel-perfect welcome email card (620px wide, padding 40px 24px). Contains:
+  Sendkit logo (28px height, rounded 4px)
+  Heading (28px, bold): "Welcome to Sendkit! 🚀"
+  Body paragraph 1 (16px, #333): "Hey, I'm Paulo — I built Sendkit. Thanks for signing up!"
+  Body paragraph 2 (16px, #333): "Quick context on what you just got: Sendkit handles your transactional emails, campaigns, and automations in one place. Your free plan comes with **3,000** emails/month. No credit card needed."
+  Intro to steps (16px): "To start sending, you just need three things:"
+  Three numbered setup steps in cream (#f5f5f0) rounded cards:
+  "Add your sending domain" — "You'll set up DKIM, SPF, and DMARC. Takes about 5 minutes."
+  "Create an API key" — "Go to Settings → API Keys. You'll need this for the SDK or SMTP."
+  "Send your first email" — "Use the REST API, SMTP, or pick one of our 10 SDKs."
+  Black pill CTA button (#1a1a19 bg, white text, rounded 50px, 15px font): "Set up my domain →"
+  Signature (16px, #333): "Talk soon," / "Paulo Castellano" (bold) / "Founder, Sendkit" (14px, #888)
+- **Animação**: Reveal escalonado: cada seção faz fade in e slide up 15px, espaçadas 8 frames a partir do frame 10.
+- **Fade out**: frame 112
 
-### Cena 7: Dashboard e Acompanhamento
-- **Frames**: 956–1117 (161 frames)
-- **Conteúdo**: Layout de dashboard com sidebar esquerda minimalista (ícones: dashboard, emissão, histórico, upload, suporte). Área principal com:
-  - **Header**: "Dashboard" + toggle "Produção/Homologação" (badge verde/azul)
-  - Cinco cards de status em grade vertical (300px wide, padding 14px 20px, rounded 12px, white bg, shadow):
-    1. Nota #001 — Processado (dot verde, badge verde "Processado")
-    2. Nota #002 — Processado (dot verde)
-    3. Nota #003 — Recebido (dot azul, badge azul "Recebido")
-    4. Nota #004 — Processando (dot laranja, spinner)
-    5. Nota #005 — Processado (dot verde)
-  - Conectados por linha tracejada vertical animada
-- **Badge flutuante**: "5 notas emitidas" (20px, weight 700, green) com dot verde pulsante (12px, glow `boxShadow`), fundo greenLight, padding 14px 32px, rounded 24px. Posição absolute top-right (top: 40, right: 60). Aparece no frame 5 com spring scale 0.5→1.
-- **Animação**: Cards começam no frame 5, cada card+linha leva 20 frames (frames 5, 25, 45, 65, 85). Linhas 10 frames após cada card. Cards spring scale 0.8→1, slide up 15px. Linhas tracejadas (3px wide, 40px tall) animam com marching ants. Fade out no frame 149.
+### Cena 7: Automation Flow
+- **Frames**: 946–1107 (161 frames)
+- **Conteúdo**: Vertical automation flow with five cards (300px wide, padding 14px 20px, rounded 12px, white bg, shadow `0 4px 16px rgba(0,0,0,0.05)`). Each card has a colored dot (8px), bold title (16px, weight 700), and two skeleton bars (80% width 7px height, then 55% width 7px height, cream bg). Connected by animated dashed lines:
+  New signup (blue dot)
+  Welcome email (green dot)
+  Wait 2 days (orange dot)
+  Getting started (green dot)
+  Opened? (purple dot)
+  After the last card, SVG branches split into two dashed paths: green "Yes → nurture" (left) and red "No → re-engage" (right), appearing after the last card.
+  Badge: "Automation live" (20px, weight 700, green) with pulsing green dot (12px, glows with `boxShadow`), greenLight background, padding 14px 32px, rounded 24px, shadow `0 4px 16px rgba(22, 163, 74, 0.2)`. Positioned absolute top-right corner (top: 40, right: 60). Appears with first card with spring scale 0.5→1.
+- **Animação**: Cards começam no frame 5; cada par card + linha leva 20 frames, e a linha começa 10 frames após o card. Cards spring scale 0.8 → 1 e slide up 15px. Linhas tracejadas (3px × 40px) animam com marching ants.
+- **Fade out**: frame 149
 
-### Cena 8: Métricas de Resultado
-- **Frames**: 1117–1221 (104 frames)
-- **Conteúdo**: Headline em Instrument Serif 44px: "Sua empresa em dia com o fisco". Três cards horizontais de métrica (280px cada):
-  - **Notas emitidas** (green dot): Conta de 0 até "847" (36px, bold, green) + sparkline SVG animada (stroke draw-in via strokeDasharray/offset) + "este mês" (14px, muted)
-  - **Valor total** (blue dot): Conta de R$ 0 até "R$ 284.500" (36px, bold, blue) + "em serviços" (14px, muted)
-  - **Taxa de sucesso** (purple dot): Conta de 0% até "99,7%" (36px, bold, purple) + 5 círculos sobrepostos de avatar (26px, -8px margin overlap, 80% opacity, cores: green/green/green/green/blue, 2px white border) representando os status
-- **Animação**: Headline spring no frame 2. Cards stagger nos frames 10, 16, 22 (scale 0.3→1). Números contam entre frames 18–55. Fade out no frame 92.
+### Cena 8: Metrics Payoff
+- **Frames**: 1107–1211 (104 frames)
+- **Conteúdo**: Headline in Instrument Serif 44px: "Turn signups into paying customers". Three horizontal metric cards (280px each):
+  Conversions (green dot): "+32%" (36px, bold, green) with animated sparkline SVG (stroke draws in via strokeDasharray/offset)
+  Revenue (blue dot): Counts up from $0 to $12,400 (36px, bold, blue) + "from email" label (14px, muted)
+  Customers (purple dot): Counts up from 0 to 847 (36px, bold, purple) + 5 overlapping avatar circles (26px, -8px margin overlap, 80% opacity, colors: blue/green/purple/orange/green, 2px white border)
+- **Animação**: Headline spring no frame 2. Cards em stagger nos frames 10, 16 e 22 (scale 0.3 → 1). Números contam entre os frames 18 e 55.
+- **Fade out**: frame 92
 
 ### Cena 9: Mic Drop
-- **Frames**: 1221–1322 (101 frames)
-- **Conteúdo**: Subtítulo em Inter 24px weight 500 muted: "de zero a uma operação fiscal completa". Texto principal em Instrument Serif 100px weight 400 foreground: "Em menos de 5 minutos".
-- **Animação**: Texto principal spring no frame 4 (scale 0.7→1). Subtítulo fade in e slide up 15px no frame 14. Fade out no frame 89.
+- **Frames**: 1211–1312 (101 frames)
+- **Conteúdo**: Subtitle in Inter 24px weight 500 muted: "from zero to a complete email stack". Main text in Instrument Serif 100px weight 400 foreground: "Under 5 minutes".
+- **Animação**: Texto principal spring no frame 4 (scale 0.7 → 1). Subtítulo faz fade in e slide up 15px no frame 14.
+- **Fade out**: frame 89
 
 ### Cena 10: CTA
-- **Frames**: 1322–1400 (78 frames)
-- **Conteúdo**: Logo NotaFlow (80×80, rounded 18px). Instrument Serif 64px: "teste grátis por 14 dias". Inter 32px weight 500: "notafiscalflow.com.br". Underline verde animado sob "notafiscalflow.com.br" (cresce de 0% a 100% width). Texto pequeno Inter 16px muted: "Sem cartão de crédito. Sem configuração."
-- **Animação**: Logo spring no frame 2. Texto principal slide up no frame 8. URL slide up no frame 14. Underline anima no frame 20. Texto pequeno fade in no frame 28. **Sem fade out** — segura até o final.
+- **Frames**: 1312–1389 (77 frames)
+- **Conteúdo**: Sendkit logo (80×80, rounded 18px). Instrument Serif 64px: "try free at sendkit.dev". Green animated underline under "sendkit.dev" (grows from 0% to 100% width).
+- **Animação**: Logo spring no frame 2. Texto slide up no frame 8. Underline verde anima no frame 16. Sem fade out — segura até o final.
 
 ---
 
 ## Sistema Visual de Design
 
-### Cores (inspiradas no tema "Livro Fiscal")
+### Cores
+
 ```
-bg:          #F5F4F1  (creme quente — papel de nota fiscal)
-card:        #FFFFFF
-border:      #E2E2DC  (olive)
-foreground:  #1C2B3A  (navy ink — tinta de documento)
-muted:       #728999
-green:       #1B5E20  (verde Receita Federal — cor principal da marca)
-greenMid:    #388E3C
-greenLight:  #E8F5E9
-greenGlow:   rgba(27, 94, 32, 0.25)
-blue:        #1565C0
-blueLight:   #E8F0FD
-orange:      #E65100
-orangeLight: #FFF3E0
+bg:          #f5f5f0  — fundo do vídeo
+card:        #ffffff
+border:      #e2e2dc  — olive
+foreground:  #262622  — texto principal
+muted:       #757568  — legendas e textos de apoio
+green:       #16a34a  — cor principal da marca
+greenLight:  rgba(22, 163, 74, 0.12)  — fundos de badge/tag
+greenGlow:   rgba(22, 163, 74, 0.25)  — efeitos de glow
+blue:        #2563eb
+blueLight:   rgba(37, 99, 235, 0.10)
+orange:      #ea580c
+orangeLight: rgba(234, 88, 12, 0.10)
 purple:      #7c3aed
 purpleLight: rgba(124, 58, 237, 0.10)
-red:         #C62828
-redLight:    #FFEBEE
-pinkBlob:    rgba(255, 182, 193, 0.25) — blob de fundo top-right
+red:         #dc2626  — alertas e dor
+redLight:    rgba(220, 38, 38, 0.10)
+pinkBlob:    rgba(255, 182, 193, 0.25)  — blob de fundo top-right
 peachBlob:   rgba(255, 218, 185, 0.2)  — blob de fundo bottom-left
 ```
 
 ### Fontes
 - **Body**: Inter (via `@remotion/google-fonts/Inter`) — weights 400, 500, 600, 700
 - **Headlines/texto emocional**: Instrument Serif (via `@remotion/google-fonts/InstrumentSerif`) — weight 400
-- **Monospace** (CNPJs, protocolos, códigos): JetBrains Mono (via `@remotion/google-fonts/JetBrainsMono`)
+- **Monospace** (códigos): `'SF Mono', 'Fira Code', 'Cascadia Code', monospace`
 
 ### Fundo
-- Creme (#F5F4F1) com grid pattern sutil (60px spacing, border color 90 hex alpha, 60% opacity)
+
+- Cor #f5f5f0 com grid pattern sutil (60px spacing, border color com alpha 90 hex, 60% opacity)
 - Blob de gradiente radial rosa (canto superior-direito, 700px diâmetro, 25% alpha, blur 40px)
 - Blob de gradiente radial pêssego (canto inferior-esquerdo, 700px diâmetro, 20% alpha, blur 40px)
 
 ### Cards
-- Fundo branco, border olive (1px solid #E2E2DC), rounded 12–14px
+
+- Fundo branco, border olive (1px solid #e2e2dc), rounded 12–14px
 - Shadow: `0 25px 60px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.04)`
 
 ### BrowserWindow Component
+
 - Estilo macOS com três dots (red #ff5f57, yellow #ffbd2e, green #28c840)
 - URL bar centralizada em pill creme com border olive
 - Rounded 14px corners
 
 ### Padrões de Animação
+
 - **Spring**: damping 10, stiffness 150, mass 0.8, overshootClamping false
 - **Fade out**: Últimos 12 frames de cada cena → opacity 0, scale 0.96
 - **Stagger**: 8–15 frames entre itens
@@ -216,19 +229,18 @@ peachBlob:   rgba(255, 218, 185, 0.2)  — blob de fundo bottom-left
 
 1. **Gerar áudio**: Use a API ElevenLabs com as configurações de voz acima e o roteiro de narração. Salve como `v1-s01.mp3` até `v1-s10.mp3` + `v1-s06b.mp3`.
 2. **Medir durações**: Use `ffprobe` para obter a duração de cada arquivo de áudio em segundos, multiplique por 30 (fps) para obter frames. Adicione 5 frames de padding.
-3. **Ajustar timings das cenas**: Os valores de frame acima são baseados nas durações de áudio estimadas. Recalcule seus valores `from` e `durationInFrames` com base nos seus arquivos de áudio reais.
+3. **Ajustar timings das cenas**: Os valores de frame acima são estimativas. Recalcule `from` e `durationInFrames` de cada cena com base nos arquivos de áudio reais.
 4. **Construir cenas**: Siga as descrições acima. Todo UI é construído em React (sem screenshots).
-5. **Adicionar música de fundo**: Coloque a música em `public/background.mp3`, volume 0.15, iniciando no frame 45.
-6. **Assets necessários**: Logo do NotaFlow em `public/images/notaflow-logo.png` (quadrado, versão escura).
+5. **Adicionar música de fundo**: Coloque a música em `/public/background.mp3`, volume 0.15, iniciando no frame 45.
+6. **Assets necessários**: Logo do testando em `public/images/logo.jpg` (quadrado, versão escura).
 
 ---
 
 ## Princípios de Design
 
 - **Sem screenshots** — todo UI é composto por componentes React animados
-- **Arco narrativo**: Urgência (prazo 2026) → Dor (complexidade) → Solução (NotaFlow) → Resultado (empresa em dia)
+- **Arco narrativo**: Dor → Solução → Resultado (não uma lista de features)
 - **Audio-first timing**: Gerar áudio → medir → construir cenas ao redor do áudio
 - **Cada card é único**: Cards de ferramentas têm visuais internos distintos que combinam com sua função
 - **Fundo sutil**: Grid visível mas não dominante
 - **Animações spring**: Tudo usa springs, nunca easing linear
-- **Identidade fiscal**: Design inspirado em documentos fiscais brasileiros (nota fiscal, papel timbrado)

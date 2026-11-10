@@ -26,4 +26,18 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('app-prompt-form-page')).toBeTruthy();
   });
+
+  it('rodapé com o link da HaloTechLabs abrindo em nova aba', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const link = (fixture.nativeElement as HTMLElement).querySelector(
+      'footer.app-footer a',
+    ) as HTMLAnchorElement;
+    expect(link.textContent?.trim()).toBe('HaloTechLabs');
+    expect(link.getAttribute('href')).toBe('https://halotechlabs.com/');
+    expect(link.target).toBe('_blank');
+    expect(link.rel).toBe('noopener noreferrer');
+  });
 });
